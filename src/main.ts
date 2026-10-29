@@ -1,4 +1,3 @@
-import "./style.css";
 import { AudioEngine } from "./audio/AudioEngine";
 import { VisualizerHost } from "./core/VisualizerHost";
 import { ViszSuiteUI } from "./ui/ViszSuiteUI";

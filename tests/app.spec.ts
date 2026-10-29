@@ -1,5 +1,15 @@
 import { test, expect } from "@playwright/test";
 
+test("page styling loads independently of application JavaScript", async ({ page }) => {
+  // A cold module load must not expose the browser's unstyled HTML defaults.
+  await page.route("**/src/main.ts", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.locator("header")).toHaveCSS("position", "fixed");
+  await expect(page.locator("header")).toHaveCSS("background-color", "rgb(11, 13, 22)");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  await expect(page.locator("#drop")).toBeHidden();
+});
+
 test("scene shortcuts, focus view and keyboard playback stay accessible", async ({
   page,
 }) => {
