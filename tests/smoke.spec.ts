@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-test("HDR scenes, audio transport, presets and resizing work without shader errors", async ({
+test("HDR scenes, audio transport, scene selection and resizing work without shader errors", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -34,17 +34,14 @@ test("HDR scenes, audio transport, presets and resizing work without shader erro
   await expect
     .poll(() => page.locator("#meter").getAttribute("style"))
     .not.toContain("scaleX(0)");
-  await page.getByRole("button", { name: "02 ATMOSPHERES" }).click();
-  await page.getByRole("button", { name: "CHROME / infinite drift" }).click();
-  await expect(page.locator('[data-scene="fractal"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#rack select").selectOption({ label: "Liquid infinity" });
+  await expect(page.locator("#rack select")).toHaveValue("Liquid infinity");
   await page.screenshot({ path: "test-results/fractal.png" });
-  await page
-    .getByRole("button", { name: "AFTERHOURS / magnetic bloom" })
-    .click();
-  await expect(page.locator('[data-scene="ferrofluid"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#rack select").selectOption({ label: "Magnetic matter" });
+  await expect(page.locator("#rack select")).toHaveValue("Magnetic matter");
   await page.screenshot({ path: "test-results/ferrofluid.png" });
-  await page.getByRole("button", { name: "PRISM / electric dreams" }).click();
-  await expect(page.locator('[data-scene="neon"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#rack select").selectOption({ label: "Neon feedback" });
+  await expect(page.locator("#rack select")).toHaveValue("Neon feedback");
   await page.screenshot({ path: "test-results/neon.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("#stage")).toHaveJSProperty("clientWidth", 390);

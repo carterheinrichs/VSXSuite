@@ -29,10 +29,7 @@ export class ViszSuiteUI {
           "Magnetic matter": "ferrofluid",
         },
       })
-      .on("change", (e) => {
-        host.select(e.value);
-        this.syncSceneButtons();
-      });
+      .on("change", (event) => host.select(event.value));
     visual.addBinding(host.settings, "overlay", { label: "Neon overlay" });
     visual.addBinding(host.settings, "postFX", { label: "Master FX" });
     visual
@@ -78,21 +75,8 @@ export class ViszSuiteUI {
           });
       }
     }
-    const presets = this.pane.addFolder({
-      title: "02  ATMOSPHERES",
-      expanded: false,
-    });
-    presets
-      .addButton({ title: "PRISM / electric dreams" })
-      .on("click", () => this.preset("neon", false, 0.8));
-    presets
-      .addButton({ title: "CHROME / infinite drift" })
-      .on("click", () => this.preset("fractal", false, 0.4));
-    presets
-      .addButton({ title: "AFTERHOURS / magnetic bloom" })
-      .on("click", () => this.preset("ferrofluid", false, 0.45));
     const sources = this.pane.addFolder({
-      title: "03  AUDIO SOURCE",
+      title: "02  AUDIO SOURCE",
       expanded: false,
     });
     sources
@@ -110,19 +94,6 @@ export class ViszSuiteUI {
     });
     const fileInput = document.querySelector<HTMLInputElement>("#file-input")!;
     const signal = this.abort.signal;
-    document
-      .querySelectorAll<HTMLButtonElement>("[data-scene]")
-      .forEach((button) => {
-        button.addEventListener(
-          "click",
-          () => {
-            this.host.select(button.dataset.scene!);
-            this.pane.refresh();
-            this.syncSceneButtons();
-          },
-          { signal },
-        );
-      });
     const focus = document.querySelector<HTMLButtonElement>("#focus")!;
     focus.addEventListener(
       "click",
@@ -259,7 +230,6 @@ export class ViszSuiteUI {
       this.transport();
     };
     host.onError = (message) => this.error(message);
-    this.syncSceneButtons();
     this.transport();
   }
   private formatTime(seconds: number) {
@@ -286,24 +256,6 @@ export class ViszSuiteUI {
           this.formatTime(audio.duration),
       );
     }
-  }
-  private preset(scene: string, overlay: boolean, bloom: number) {
-    this.host.select(scene);
-    this.host.settings.overlay = overlay;
-    this.host.post.params.bloom = bloom;
-    this.host.settings.postFX = true;
-    this.pane.refresh();
-    this.syncSceneButtons();
-  }
-  private syncSceneButtons() {
-    document
-      .querySelectorAll<HTMLButtonElement>("[data-scene]")
-      .forEach((button) => {
-        button.setAttribute(
-          "aria-pressed",
-          String(button.dataset.scene === this.host.settings.scene),
-        );
-      });
   }
   private source() {
     document.querySelector("#source-label")!.textContent =

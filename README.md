@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open the local Vite URL and press **Play** to start the synth, open an audio file, or drag one onto the window. The bottom transport provides play/pause, elapsed time, duration, and a seek slider for files and the synth loop. Pause preserves the audio clock and resumes from the same position. Live microphone/system inputs display **LIVE** and cannot seek. The header provides direct scene selection, fullscreen, and a hide-controls view. Space toggles playback when no interactive control has focus. The chrome stays dark across scenes. The rack provides source selection, three scene presets, a neon overlay, adaptive quality, render scale, and per-module controls.
+Open the local Vite URL and press **Play** to start the synth, open an audio file, or drag one onto the window. The bottom transport provides play/pause, elapsed time, duration, and a seek slider for files and the synth loop. Pause preserves the audio clock and resumes from the same position. Live microphone/system inputs display **LIVE** and cannot seek. The header provides fullscreen and a hide-controls view. Space toggles playback when no interactive control has focus. The chrome stays dark across scenes. The rack contains the only scene selector, source selection, a neon overlay, adaptive quality, render scale, and per-module controls.
 
 ```sh
 npm run build       # strict type checking + production bundle
@@ -42,6 +42,6 @@ The default maximum scale is 1.0 of CSS dimensions, without a device-pixel-ratio
 
 The raymarcher is bounded to 112 steps; the ferrofluid uses a retained high-resolution mesh, procedural PMREM environment and half-resolution planar reflection capped at 512 pixels per axis, with reflection MSAA disabled. Fog is exponential scene fog, providing atmospheric depth rather than physical volumetric scattering. Bloom is an efficient separable approximation and its blur passes are skipped when bloom is zero. Beat detection is an adaptive energy heuristic, not tempo tracking. Visual quality and FPS vary with GPU and screen size; no hardware frame-rate guarantee is implied.
 
-Tests check shader/runtime errors, synth activation, scene presets, resizing, pause/resume and seeking for synth and local WAV files, HiDPI pixel budgets/adaptation, and FFT/history buffer stability plus metric/beat behavior. Physical microphone/system capture and codec-specific playback still need manual device testing.
+Tests check shader/runtime errors, synth activation, scene selection, resizing, pause/resume and seeking for synth and local WAV files, HiDPI pixel budgets/adaptation, and FFT/history buffer stability plus metric/beat behavior. Physical microphone/system capture and codec-specific playback still need manual device testing.
 
 Simplex shader noise derives from Ashima Arts / Stefan Gustavson (MIT; see `THIRD_PARTY_NOTICES.md`).

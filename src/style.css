@@ -49,7 +49,8 @@ header {
 .brand i {
   display: block;
   font:
-    9px "DM Sans", system-ui,
+    9px "DM Sans",
+    system-ui,
     sans-serif;
   letter-spacing: 2.1px;
   color: #8b919f;
@@ -140,7 +141,8 @@ footer {
 header button,
 footer button {
   font:
-    600 10px "DM Sans", system-ui,
+    600 10px "DM Sans",
+    system-ui,
     sans-serif;
   letter-spacing: 1px;
   padding: 13px 17px;
@@ -269,7 +271,8 @@ a:focus-visible {
 }
 #drop small {
   font:
-    10px "DM Sans", system-ui,
+    10px "DM Sans",
+    system-ui,
     sans-serif;
   letter-spacing: 3px;
   color: #b8abc9;
@@ -356,7 +359,6 @@ header {
   background: #0b0d16;
   border-bottom: 1px solid #ffffff16;
 }
-header nav,
 .view-actions {
   display: flex;
   gap: 6px;
@@ -366,22 +368,6 @@ header button {
   font-size: 12px;
   letter-spacing: 0.2px;
   padding: 10px 16px;
-}
-.scene-switcher {
-  padding: 4px;
-  border: 1px solid #ffffff18;
-  border-radius: 10px;
-  background: #141724;
-}
-.scene-switcher button {
-  border-color: transparent;
-  background: transparent;
-  color: #b9c0d4;
-}
-.scene-switcher button[aria-pressed="true"] {
-  color: #f2edff;
-  background: #39304f;
-  border-color: #aa88d34d;
 }
 #rack {
   background: #141722;
@@ -445,19 +431,12 @@ input:focus-visible {
   .brand i {
     font-size: 8px;
   }
-  .scene-switcher {
-    order: 3;
-    width: 100%;
-  }
-  .scene-switcher button {
-    flex: 1;
-  }
   header button {
     padding: 9px 10px;
     font-size: 11px;
   }
   #rack {
-    top: 150px;
+    top: 95px;
     max-height: calc(100dvh - 350px);
     width: 230px;
   }
@@ -474,4 +453,8 @@ input:focus-visible {
   }
 }
 
-#rack { --tp-button-background-color-hover: #46516b; --tp-button-background-color-focus: #46516b; --tp-button-background-color-active: #53617e; }
+#rack {
+  --tp-button-background-color-hover: #46516b;
+  --tp-button-background-color-focus: #46516b;
+  --tp-button-background-color-active: #53617e;
+}
