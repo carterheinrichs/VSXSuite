@@ -1,0 +1,345 @@
+:root {
+  font-family: "DM Sans", sans-serif;
+  color: #edf0f7;
+  background: #08090f;
+  font-synthesis: none;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+header {
+  position: fixed;
+  left: 38px;
+  right: 38px;
+  top: 29px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+.brand {
+  color: white;
+  text-decoration: none;
+  font:
+    700 26px "Space Grotesk",
+    sans-serif;
+  letter-spacing: -1.5px;
+  pointer-events: auto;
+}
+.brand span {
+  font-weight: 400;
+  color: #9c9faa;
+}
+.brand i {
+  display: block;
+  font:
+    9px "DM Sans",
+    sans-serif;
+  letter-spacing: 2.1px;
+  color: #8b919f;
+  margin-top: 7px;
+}
+.live {
+  font-size: 9px;
+  letter-spacing: 1.7px;
+  color: #969da9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.live b {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #a5f4be;
+  box-shadow: 0 0 12px #a5f4be;
+}
+main {
+  position: fixed;
+  left: 38px;
+  bottom: 135px;
+  pointer-events: none;
+  text-shadow: 0 2px 25px #000;
+}
+.eyebrow {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #c1b5ef;
+  margin-bottom: 14px;
+}
+h1 {
+  font:
+    500 clamp(30px, 4vw, 55px) "Space Grotesk",
+    sans-serif;
+  letter-spacing: -2px;
+  margin: 0 0 12px;
+}
+main p {
+  font-size: 12px;
+  color: #a8acbb;
+  letter-spacing: 0.2px;
+}
+#rack {
+  position: fixed;
+  right: 30px;
+  top: 115px;
+  width: 270px;
+  max-height: calc(100dvh - 250px);
+  overflow: auto;
+  border: 1px solid #ffffff13;
+  border-radius: 9px;
+  box-shadow: 0 12px 50px #0005;
+  --tp-base-background-color: #12131c;
+  --tp-base-font-family: "DM Sans", sans-serif;
+  --tp-base-border-radius: 8px;
+  --tp-base-shadow-color: transparent;
+  --tp-button-background-color: #30313d;
+  --tp-button-background-color-hover: #494256;
+  --tp-input-background-color: #20232e;
+  --tp-input-foreground-color: #d6c6ff;
+  --tp-label-foreground-color: #9b9eae;
+  --tp-container-foreground-color: #c7bbdf;
+}
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  min-height: 84px;
+  padding: 20px 38px;
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #0b0c13;
+  border-top: 1px solid #ffffff12;
+}
+.transport,
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+button {
+  font:
+    600 10px "DM Sans",
+    sans-serif;
+  letter-spacing: 1px;
+  padding: 13px 17px;
+  background: #ffffff09;
+  border: 1px solid #ffffff20;
+  color: #dddce6;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:hover {
+  background: #ffffff17;
+  border-color: #c9a9ff;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #d5c0ff;
+  outline-offset: 4px;
+}
+#play {
+  background: #dfd3ff;
+  color: #24183c;
+  border-color: #dfd3ff;
+  min-width: 100px;
+}
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.timeline span {
+  color: #b4adc8;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+}
+#seek {
+  width: 100%;
+  min-width: 30px;
+  accent-color: #c6a6ff;
+  cursor: pointer;
+}
+#seek:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+#seek:focus-visible {
+  outline: 2px solid #d5c0ff;
+  outline-offset: 4px;
+}
+#resolution {
+  white-space: nowrap;
+  color: #a398b8;
+}
+@media (max-width: 1200px) {
+  footer {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .timeline {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  main {
+    bottom: 165px;
+  }
+}
+#source-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #9497a6;
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.stats {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #7e8596;
+}
+#fps {
+  color: #c9cbd6;
+  white-space: nowrap;
+}
+.meter {
+  height: 14px;
+  width: 50px;
+  background: repeating-linear-gradient(
+    90deg,
+    #ffffff0c 0 3px,
+    transparent 3px 5px
+  );
+  overflow: hidden;
+}
+.meter i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: repeating-linear-gradient(
+    90deg,
+    #c6a6ff 0 3px,
+    transparent 3px 5px
+  );
+}
+#drop {
+  position: fixed;
+  inset: 15px;
+  background: #0b081af0;
+  border: 1px dashed #ba9cf5;
+  border-radius: 10px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 15px;
+  font:
+    500 30px "Space Grotesk",
+    sans-serif;
+  z-index: 20;
+}
+#drop small {
+  font:
+    10px "DM Sans",
+    sans-serif;
+  letter-spacing: 3px;
+  color: #b8abc9;
+}
+.dragging #drop {
+  display: flex;
+}
+#error {
+  position: fixed;
+  top: 90px;
+  left: 38px;
+  max-width: min(500px, 80vw);
+  padding: 14px 18px;
+  background: #381e35ed;
+  border: 1px solid #c471a4;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 30;
+}
+@media (max-width: 800px) {
+  header {
+    left: 20px;
+    right: 20px;
+    top: 20px;
+  }
+  .live {
+    display: none;
+  }
+  #rack {
+    right: 14px;
+    top: 95px;
+    width: 230px;
+    max-height: 50dvh;
+  }
+  main {
+    left: 20px;
+    bottom: 210px;
+    max-width: 85%;
+  }
+  main p {
+    max-width: 240px;
+    line-height: 1.6;
+  }
+  footer {
+    grid-template-columns: 1fr;
+    padding: 14px 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .transport {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  #source-label {
+    max-width: 120px;
+  }
+  .stats {
+    grid-row: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+  button {
+    padding: 10px 12px;
+  }
+}
+
+#rack {
+  --tp-button-foreground-color: #d8d4e3;
+  --tp-button-foreground-color-hover: #fff;
+  --tp-input-foreground-color: #e4d7ff;
+  --tp-container-foreground-color: #d5c9e8;
+}
+#rack button {
+  letter-spacing: 0.4px;
+}

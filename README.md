@@ -1,0 +1,47 @@
+# VSXSuite
+
+A local-first modular music visualizer built with strict TypeScript, Vite, Three.js/WebGL2, native Web Audio and Tweakpane. No audio leaves the browser. Assets and fonts require no external service.
+
+## Run
+
+```sh
+npm install
+npm run dev
+```
+
+Open the local Vite URL and press **Play** to start the synth, open an audio file, or drag one onto the window. The bottom transport provides play/pause, elapsed time, duration, and a seek slider for files and the synth loop. Pause preserves the audio clock and resumes from the same position. Live microphone/system inputs display **LIVE** and cannot seek. The rack provides source selection, three scene presets, a neon overlay, adaptive quality, render scale, and per-module controls.
+
+```sh
+npm run build       # strict type checking + production bundle
+npm test            # Chromium integration and DSP checks
+npm run preview     # serve the production bundle locally
+```
+
+Install the test browser once with `npx playwright install chromium`. Deploy `dist/` to any static host. HTTPS or localhost is required for microphone/display capture. Browser audio starts after a user gesture. System capture support depends on the browser/OS and the selected source; enable “share audio” in the picker. The capture video track is required by display-capture APIs and is never rendered or transmitted. File codec support follows the browser's decoder.
+
+## Architecture
+
+- `src/audio/AudioEngine.ts`: source lifecycle, pre-rendered eight-second procedural beat, 1024-point FFT, six smoothed frequency bands, normalized RMS/centroid and adaptive low-frequency beat gate. Microphone/capture output is muted to avoid acoustic feedback. Local files loop.
+- `src/core/types.ts`: `AudioFrameData` and the `IVisualModule` contract.
+- `src/core/VisualizerHost.ts`: WebGL2 capability checks, two half-float HDR scene targets, explicit scene → optional neon overlay → optional master FX → display pipeline. Neon feeds its internal HDR buffer directly into post FX; the final FX composite renders straight to the canvas, eliminating redundant full-screen copies. Resize, adaptive resolution, visibility suspension, context-loss handling and disposal are centralized.
+- `src/modules/`: neon vortex with private feedback targets, folded gyroid sphere tracing, simplex-displaced physical ferrofluid with finite-difference normals and a planar reflector, plus quarter-resolution separable bloom/aberration/scanlines. Tone mapping occurs after HDR compositing.
+- `src/shaders/`: shared fullscreen utilities and simplex noise.
+- `src/ui/ViszSuiteUI.ts`: automatic parameter bindings, audio sources, presets, error feedback and throttled meters.
+
+The current audio texture is 512×2 R8: FFT at row 0, waveform at row 1 (silence = 128). The 512×128 R8 history shifts in place and puts the newest FFT at row 0. Textures use linear filtering, clamp addressing and no mipmaps. Modules receive both textures through the same reused frame object.
+
+Application-owned frame code creates no arrays, vectors, objects, typed-array views or callbacks per frame. Audio buffers, render targets and uniforms are retained. The small DOM meter updates four times per second; Three.js and Tweakpane manage their own internals (Tweakpane uses DOM). Resource initialization, source changes and resizing may allocate. This is not a guarantee that browser or library internals perform zero allocations.
+
+## Extending
+
+Implement `IVisualModule`, then register a retained instance in `VisualizerHost.modules`. Use `update` to mutate pre-existing uniforms. Render into `writeBuffer`; sample only `readBuffer` or a separate internal target, never the target currently being written. Put user controls in `params`; primitive parameters are added automatically to their rack folder. Add range metadata in the rack for specialized controls. The MVP supports one base scene, an additive neon overlay, and a final FX pass; extend the host's explicit ordering for additional layer types.
+
+## Performance and limits
+
+The default maximum scale is 0.8 of CSS dimensions, without a device-pixel-ratio multiplier. Adaptive quality starts with a 1280×720 pixel budget, or 640×360 when the graphics driver identifies software rendering. Sustained slow frames reduce resolution toward a 60 FPS target; sustained headroom gradually restores it. Resolution changes resize the retained targets rather than allocating resources every frame. Disable adaptive quality to hold a manual render scale (capped at a 1920×1080 pixel budget). The footer shows measured FPS and actual render dimensions; hover the dimensions for software-renderer diagnostics. Browser graphics acceleration is strongly recommended for high-quality rendering. UI panels avoid costly backdrop blurs over the animated canvas.
+
+The raymarcher is bounded to 112 steps; the ferrofluid uses a retained high-resolution mesh, procedural PMREM environment and half-resolution planar reflection capped at 512 pixels per axis, with reflection MSAA disabled. Fog is exponential scene fog, providing atmospheric depth rather than physical volumetric scattering. Bloom is an efficient separable approximation and its blur passes are skipped when bloom is zero. Beat detection is an adaptive energy heuristic, not tempo tracking. Visual quality and FPS vary with GPU and screen size; no hardware frame-rate guarantee is implied.
+
+Tests check shader/runtime errors, synth activation, scene presets, resizing, pause/resume and seeking for synth and local WAV files, HiDPI pixel budgets/adaptation, and FFT/history buffer stability plus metric/beat behavior. Physical microphone/system capture and codec-specific playback still need manual device testing.
+
+Simplex shader noise derives from Ashima Arts / Stefan Gustavson (MIT; see `THIRD_PARTY_NOTICES.md`).

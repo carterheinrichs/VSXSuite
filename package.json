@@ -1,0 +1,40 @@
+{
+  "name": "vsxsuite",
+  "version": "1.0.0",
+  "description": "Client-side HDR modular audio visualization suite",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "format": "prettier --write src tests playwright.config.ts index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carterheinrichs/VSXSuite.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/carterheinrichs/VSXSuite/issues"
+  },
+  "homepage": "https://github.com/carterheinrichs/VSXSuite#readme",
+  "dependencies": {
+    "three": "^0.186.1",
+    "tweakpane": "^4.0.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@tweakpane/core": "^2.0.5",
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.186.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "private": true
+}

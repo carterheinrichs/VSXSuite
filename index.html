@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#08090f" />
+    <title>VSXSuite — Audio in motion</title>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <header>
+      <a class="brand" href="#"
+        >VSX<span>SUITE</span><i>01 / AUDIO IN MOTION</i></a
+      >
+      <div class="live"><b></b> REALTIME VISUAL ENGINE</div>
+    </header>
+    <main>
+      <div class="eyebrow">SOUND BECOMES SPACE</div>
+      <h1 id="scene-title">Neon feedback</h1>
+      <p id="scene-description">
+        A living echo. Infinite color, folded through time.
+      </p>
+    </main>
+    <aside id="rack"></aside>
+    <footer>
+      <div class="transport">
+        <button id="play" aria-label="Play">▶ &nbsp; PLAY</button
+        ><button id="file">↗ &nbsp; OPEN AUDIO</button
+        ><input
+          id="file-input"
+          type="file"
+          accept="audio/*,.flac"
+          hidden
+        /><span id="source-label">PROCEDURAL / 120 BPM</span>
+      </div>
+      <div class="timeline">
+        <span id="elapsed">0:00</span>
+        <input
+          id="seek"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0"
+          aria-label="Song position"
+          disabled
+        />
+        <span id="duration">0:00</span>
+      </div>
+      <div class="stats">
+        <span id="status">READY TO EXPLORE</span><span id="fps">— FPS</span>
+        <span id="resolution" title="Internal render resolution"></span>
+        <div class="meter"><i id="meter"></i></div>
+      </div>
+    </footer>
+    <div id="drop">
+      <span>DROP YOUR SOUND</span><small>MP3 · WAV · OGG · FLAC</small>
+    </div>
+    <div id="error" role="alert" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
