@@ -5,6 +5,25 @@
   font-synthesis: none;
   color-scheme: dark;
 }
+#export-status {
+  position: fixed;
+  top: 90px;
+  left: 30px;
+  max-width: min(560px, 85vw);
+  padding: 12px 16px;
+  background: #141722;
+  border: 1px solid #c6a6ff;
+  border-radius: 6px;
+  font-size: 12px;
+}
+#download-video {
+  color: #dfd3ff;
+  align-self: center;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 * {
   box-sizing: border-box;
 }

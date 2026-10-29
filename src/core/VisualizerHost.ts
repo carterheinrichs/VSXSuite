@@ -3,14 +3,18 @@ import { AudioEngine } from "../audio/AudioEngine";
 import type { IVisualModule } from "./types";
 import { target, FullscreenPass } from "../shaders/shared";
 import { NeonFeedbackModule } from "../modules/NeonFeedbackModule";
-import { RaymarchedFractalModule } from "../modules/RaymarchedFractalModule";
+import {
+  AuroraRibbonsModule,
+  PrismaticDriftModule,
+} from "../modules/ConsoleLightModules";
 import { RealisticFerrofluidModule } from "../modules/RealisticFerrofluidModule";
 import { MasterPostFXModule } from "../modules/MasterPostFXModule";
 export class VisualizerHost {
   readonly renderer: T.WebGLRenderer;
   readonly modules: IVisualModule[] = [
     new NeonFeedbackModule(),
-    new RaymarchedFractalModule(),
+    new AuroraRibbonsModule(),
+    new PrismaticDriftModule(),
     new RealisticFerrofluidModule(),
   ];
   readonly post = new MasterPostFXModule();
@@ -38,6 +42,7 @@ export class VisualizerHost {
   private disposed = false;
   private lost = false;
   onStats: (() => void) | null = null;
+  exporting = false;
   onError: ((message: string) => void) | null = null;
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -97,6 +102,7 @@ export class VisualizerHost {
     }
   };
   resize = () => {
+    if (this.exporting) return;
     // CSS dimensions, not devicePixelRatio: HDR multi-pass rendering at 4K/HiDPI
     // silently consumed millions of extra fragments on every pass.
     const budget = this.settings.autoQuality ? this.pixelBudget : 1920 * 1080;
@@ -129,6 +135,7 @@ export class VisualizerHost {
     this.clear();
   }
   private adapt(frameDelta: number) {
+    if (this.exporting) return;
     if (!this.settings.autoQuality) return;
     this.qualityTime += frameDelta;
     this.qualityFrames++;

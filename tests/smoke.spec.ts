@@ -34,9 +34,20 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
   await expect
     .poll(() => page.locator("#meter").getAttribute("style"))
     .not.toContain("scaleX(0)");
-  await page.locator("#rack select").selectOption({ label: "Liquid infinity" });
-  await expect(page.locator("#rack select")).toHaveValue("Liquid infinity");
-  await page.screenshot({ path: "test-results/fractal.png" });
+  await expect(page.locator("#rack select option")).toHaveText([
+    "Neon feedback",
+    "Aurora ribbons",
+    "Prismatic drift",
+    "Magnetic matter",
+  ]);
+  for (const [label, file] of [
+    ["Aurora ribbons", "aurora"],
+    ["Prismatic drift", "prismatic"],
+  ]) {
+    await page.locator("#rack select").selectOption({ label });
+    await expect(page.locator("#rack select")).toHaveValue(label);
+    await page.screenshot({ path: "test-results/" + file + ".png" });
+  }
   await page.locator("#rack select").selectOption({ label: "Magnetic matter" });
   await expect(page.locator("#rack select")).toHaveValue("Magnetic matter");
   await page.screenshot({ path: "test-results/ferrofluid.png" });

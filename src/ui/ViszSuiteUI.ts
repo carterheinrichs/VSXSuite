@@ -2,11 +2,14 @@ import { Pane } from "tweakpane";
 import type { VisualizerHost } from "../core/VisualizerHost";
 import type { AudioEngine } from "../audio/AudioEngine";
 import type { IVisualModule } from "../core/types";
+import { VideoExporter } from "../core/VideoExporter";
 export class ViszSuiteUI {
   private readonly pane: Pane;
   private readonly abort = new AbortController();
   private dragDepth = 0;
   private scrubbing = false;
+  private readonly exporter = new VideoExporter();
+  private downloadURL = "";
   private readonly play = document.querySelector<HTMLButtonElement>("#play")!;
   private readonly seek = document.querySelector<HTMLInputElement>("#seek")!;
   private readonly elapsed = document.querySelector<HTMLElement>("#elapsed")!;
@@ -23,11 +26,9 @@ export class ViszSuiteUI {
     visual
       .addBinding(host.settings, "scene", {
         label: "Scene",
-        options: {
-          "Neon feedback": "neon",
-          "Liquid infinity": "fractal",
-          "Magnetic matter": "ferrofluid",
-        },
+        options: Object.fromEntries(
+          host.modules.map((module) => [module.name, module.id]),
+        ),
       })
       .on("change", (event) => host.select(event.value));
     visual.addBinding(host.settings, "overlay", { label: "Neon overlay" });
@@ -94,6 +95,14 @@ export class ViszSuiteUI {
     });
     const fileInput = document.querySelector<HTMLInputElement>("#file-input")!;
     const signal = this.abort.signal;
+    document.querySelector("#export")!.addEventListener(
+      "click",
+      () => {
+        if (this.exporter.active) this.exporter.cancel();
+        else void this.exportVideo();
+      },
+      { signal },
+    );
     const focus = document.querySelector<HTMLButtonElement>("#focus")!;
     focus.addEventListener(
       "click",
@@ -238,9 +247,17 @@ export class ViszSuiteUI {
   }
   private transport() {
     const audio = this.audio;
+    const exporting = this.exporter.active;
+    const exportButton = document.querySelector<HTMLButtonElement>("#export")!;
+    exportButton.disabled = !audio.fileLoaded && !exporting;
+    exportButton.textContent = exporting ? "Cancel export" : "Export video";
+    this.play.disabled = exporting;
     this.play.textContent = audio.playing ? "Ⅱ  PAUSE" : "▶  PLAY";
     this.play.setAttribute("aria-label", audio.playing ? "Pause" : "Play");
-    this.seek.disabled = audio.duration === 0;
+    this.seek.disabled = audio.duration === 0 || exporting;
+    if (exporting)
+      document.querySelector("#export-status")!.textContent =
+        `Exporting ${this.formatTime(audio.position)} / ${this.formatTime(audio.duration)} · Keep this tab visible. Video contains only the visualization and music.`;
     this.seek.max = String(audio.duration || 1);
     this.duration.textContent =
       audio.hasSource && !audio.duration
@@ -268,6 +285,7 @@ export class ViszSuiteUI {
     this.transport();
   }
   private async load(file: File) {
+    if (this.exporter.active) return;
     if (
       !/\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i.test(file.name) &&
       !file.type.startsWith("audio/")
@@ -278,6 +296,7 @@ export class ViszSuiteUI {
     await this.run(() => this.audio.file(file));
   }
   private async run(action: () => Promise<void>) {
+    if (this.exporter.active) return;
     document.querySelector<HTMLElement>("#error")!.hidden = true;
     document.querySelector("#status")!.textContent = "CONNECTING AUDIO…";
     try {
@@ -300,7 +319,43 @@ export class ViszSuiteUI {
     element.textContent = message;
     element.hidden = false;
   }
+  private async exportVideo() {
+    const status = document.querySelector<HTMLElement>("#export-status")!;
+    const rack = document.querySelector<HTMLElement>("#rack")!;
+    const file = document.querySelector<HTMLButtonElement>("#file")!;
+    const download =
+      document.querySelector<HTMLAnchorElement>("#download-video")!;
+    rack.inert = true;
+    file.disabled = true;
+    status.hidden = false;
+    status.textContent = "Preparing full-song export…";
+    try {
+      const recording = this.exporter.record(this.host, this.audio);
+      this.transport();
+      const blob = await recording;
+      if (this.downloadURL) URL.revokeObjectURL(this.downloadURL);
+      this.downloadURL = URL.createObjectURL(blob);
+      download.href = this.downloadURL;
+      download.download =
+        this.audio.sourceName.replace(/\.[^.]+$/, "") +
+        "-visualization." +
+        (blob.type.includes("mp4") ? "mp4" : "webm");
+      download.hidden = false;
+      status.textContent =
+        "Video ready. Select Download video to save the full song.";
+    } catch (error) {
+      status.textContent =
+        error instanceof Error ? error.message : "Unable to export video.";
+    } finally {
+      rack.inert = false;
+      file.disabled = false;
+      this.transport();
+      this.source();
+    }
+  }
   dispose() {
+    this.exporter.cancel();
+    if (this.downloadURL) URL.revokeObjectURL(this.downloadURL);
     this.abort.abort();
     this.pane.dispose();
     this.host.onStats = null;

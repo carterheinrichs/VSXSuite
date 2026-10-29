@@ -14,6 +14,8 @@
       <div class="view-actions">
         <button id="focus" aria-pressed="false">Hide controls</button>
         <button id="fullscreen">Fullscreen</button>
+        <button id="export" disabled>Export video</button>
+        <a id="download-video" hidden>Download video</a>
       </div>
     </header>
     <aside id="rack" aria-label="Visual settings"></aside>
@@ -52,6 +54,7 @@
       <span>DROP YOUR SOUND</span><small>MP3 · WAV · OGG · FLAC</small>
     </div>
     <div id="error" role="alert" hidden></div>
+    <div id="export-status" role="status" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

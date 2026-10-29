@@ -20,8 +20,8 @@ test("panel scene selection, focus view and keyboard playback stay accessible", 
 }) => {
   await page.goto("/");
   const scene = page.locator("#rack select");
-  await scene.selectOption({ label: "Liquid infinity" });
-  await expect(scene).toHaveValue("Liquid infinity");
+  await scene.selectOption({ label: "Aurora ribbons" });
+  await expect(scene).toHaveValue("Aurora ribbons");
   await page
     .getByRole("button", { name: "Hide controls", exact: true })
     .click();

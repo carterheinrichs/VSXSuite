@@ -49,6 +49,32 @@ export class AudioEngine {
   private startedAt = 0;
   private offset = 0;
   sourceName = "No audio";
+  fileLoaded = false;
+  beginExport(onEnded: () => void) {
+    if (!this.buffer || !this.context || !this.fileLoaded)
+      throw new Error("Open an audio file before exporting.");
+    const buffer = this.buffer;
+    const position = this.position;
+    const paused = !this.playing;
+    const ready = this.context.suspend();
+    const destination = this.context.createMediaStreamDestination();
+    this.analyser!.connect(destination);
+    this.seek(0);
+    const source = this.source as AudioBufferSourceNode;
+    source.loop = false;
+    source.onended = onEnded;
+    return {
+      ready,
+      stream: destination.stream,
+      restore: () => {
+        source.onended = null;
+        this.analyser!.disconnect(destination);
+        destination.stream.getTracks().forEach((track) => track.stop());
+        this.seek(position);
+        if (paused) void this.context!.suspend();
+      },
+    };
+  }
   get hasSource() {
     return this.source !== null;
   }
@@ -116,6 +142,7 @@ export class AudioEngine {
     await this.context.resume();
   }
   stop() {
+    this.fileLoaded = false;
     this.generation++;
     this.armed = true;
     this.average = 0.1;
@@ -152,6 +179,7 @@ export class AudioEngine {
     this.output!.gain.value = 0.65;
     this.startBuffer(buffer);
     this.sourceName = file.name;
+    this.fileLoaded = true;
   }
   async input(system = false) {
     await this.ready();
