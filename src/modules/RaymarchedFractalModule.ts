@@ -6,12 +6,13 @@ const fragment =
   common +
   `
 uniform float uSpeed,uDetail,uMetal,uHue;
+uniform mat2 uFoldRotation;
 float smin(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
 float map(vec3 p){
  p.xy=rot(sin(p.z*.25+uTime*.15)*(.4+uSub*.8))*p.xy;
  vec3 q=p;float scale=1.;
  // Three space folds create a bounded-distance liquid lattice.
- for(int i=0;i<3;i++){q=abs(q)-vec3(.8,.65,.7);q.xy=rot(.65+uSub*.3)*q.xy;q=q*1.35;scale*=1.35;}
+ for(int i=0;i<3;i++){q=abs(q)-vec3(.8,.65,.7);q.xy=uFoldRotation*q.xy;q=q*1.35;scale*=1.35;}
  float folded=(length(q)-.85)/scale;
  vec3 g=p*1.65;float gyroid=abs(dot(sin(g),cos(g.zxy)))/2.86-.095-uBass*.08;
  return smin(gyroid,folded,.22);
@@ -34,6 +35,7 @@ export class RaymarchedFractalModule extends ShaderModule {
     uDetail: { value: 90 },
     uMetal: { value: 1.4 },
     uHue: { value: 0.12 },
+    uFoldRotation: { value: new Float32Array(4) },
   };
   init(_r: T.WebGLRenderer, w: number, h: number) {
     this.pass = new FullscreenPass(fragment, {
@@ -44,6 +46,14 @@ export class RaymarchedFractalModule extends ShaderModule {
   }
   override update(a: AudioFrameData, t: number, dt: number) {
     super.update(a, t, dt);
+    const angle = 0.65 + a.subBass * 0.3;
+    const c = Math.cos(angle),
+      s = Math.sin(angle);
+    const rotation = this.extra.uFoldRotation.value;
+    rotation[0] = c;
+    rotation[1] = -s;
+    rotation[2] = s;
+    rotation[3] = c;
     this.flight += dt * (this.params.speed + a.mid * 0.65);
     this.extra.uSpeed.value = 1;
     this.uniforms.uTime.value = this.flight;

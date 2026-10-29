@@ -78,10 +78,7 @@ vec3 displaced(vec3 n){return n*(1.+displacement(n));}
           `// Finite-difference normals keep the displaced spikes physically lit.
 vec3 n=normalize(position);vec3 tangent=normalize(cross(n,abs(n.y)<.99?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 bitangent=normalize(cross(n,tangent));vec3 center=displaced(n);vec3 objectNormal=normalize(cross(displaced(normalize(n+tangent*.003))-center,displaced(normalize(n+bitangent*.003))-center));`,
         )
-        .replace(
-          "#include <begin_vertex>",
-          "vec3 transformed=displaced(normalize(position));",
-        );
+        .replace("#include <begin_vertex>", "vec3 transformed=center;");
     };
     this.resize(w, h);
   }
@@ -104,7 +101,6 @@ vec3 n=normalize(position);vec3 tangent=normalize(cross(n,abs(n.y)<.99?vec3(0.,1
     _read: T.WebGLRenderTarget,
   ) {
     r.setRenderTarget(w);
-    r.clear();
     r.render(this.scene, this.camera);
   }
   resize(w: number, h: number) {

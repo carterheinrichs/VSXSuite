@@ -2,7 +2,11 @@ import * as T from "three";
 import type { AudioFrameData } from "../core/types";
 import { ShaderModule } from "./ShaderModule";
 import { common, FullscreenPass, target } from "../shaders/shared";
-const blur = `varying vec2 vUv;uniform sampler2D image;uniform vec2 direction;uniform float threshold;void main(){vec3 c=vec3(0.);for(int i=-4;i<=4;i++){vec3 s=texture2D(image,vUv+direction*float(i)*2.).rgb;s=max(s-vec3(threshold),vec3(0.));c+=s*exp(-float(i*i)*.12)*.20236;}gl_FragColor=vec4(c,1.);}`;
+// Composite before thresholding and chromatic offsets, just as in the separate
+// overlay pass. The feedback itself continues to contain neon only.
+const composite = `uniform sampler2D uOverlay;uniform float uOverlayAmount;
+vec3 compositeAt(sampler2D image,vec2 uv){vec3 c=texture2D(image,uv).rgb;if(uOverlayAmount>0.)c+=texture2D(uOverlay,uv).rgb*uOverlayAmount;return c;}`;
+const blur = `varying vec2 vUv;uniform sampler2D image;uniform vec2 direction;uniform float threshold;${composite}void main(){vec3 c=vec3(0.);for(int i=-4;i<=4;i++){vec3 s=compositeAt(image,vUv+direction*float(i)*2.);s=max(s-vec3(threshold),vec3(0.));c+=s*exp(-float(i*i)*.12)*.20236;}gl_FragColor=vec4(c,1.);}`;
 export class MasterPostFXModule extends ShaderModule {
   readonly id = "post";
   readonly name = "Master polish";
@@ -17,6 +21,8 @@ export class MasterPostFXModule extends ShaderModule {
   private bloomB!: T.WebGLRenderTarget;
   private blur!: FullscreenPass;
   private readonly extra = {
+    uOverlay: { value: null as T.Texture | null },
+    uOverlayAmount: { value: 0 },
     uBloom: { value: null as T.Texture | null },
     uBloomAmount: { value: 0.65 },
     uChromatic: { value: 0.3 },
@@ -26,9 +32,10 @@ export class MasterPostFXModule extends ShaderModule {
   init(_r: T.WebGLRenderer, w: number, h: number) {
     this.pass = new FullscreenPass(
       common +
+        composite +
         `
 uniform sampler2D uBloom;uniform float uBloomAmount,uChromatic,uScanlines,uExposure;
-void main(){vec2 offset=(vUv-.5)*(.001+uBeat*.007)*uChromatic;vec3 c=vec3(texture2D(uPrevious,vUv+offset).r,texture2D(uPrevious,vUv).g,texture2D(uPrevious,vUv-offset).b);c+=texture2D(uBloom,vUv).rgb*uBloomAmount;c*=uExposure;
+void main(){vec2 offset=(vUv-.5)*(.001+uBeat*.007)*uChromatic;vec3 c=vec3(compositeAt(uPrevious,vUv+offset).r,compositeAt(uPrevious,vUv).g,compositeAt(uPrevious,vUv-offset).b);if(uBloomAmount>0.)c+=texture2D(uBloom,vUv).rgb*uBloomAmount;c*=uExposure;
 // ACES fitted display transform, applied only after HDR compositing.
 c=clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);c=pow(c,vec3(1./2.2));c*=1.-uScanlines*.07*(.5+.5*sin(vUv.y*uResolution.y*PI));c*=1.-.25*pow(length(vUv-.5),2.);gl_FragColor=vec4(c,1.);}`,
       { ...this.uniforms, ...this.extra },
@@ -37,6 +44,8 @@ c=clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);c=pow(c,vec3(1./2.2));c*=1.
       image: { value: null },
       direction: { value: new T.Vector2() },
       threshold: { value: 0.7 },
+      uOverlay: { value: null },
+      uOverlayAmount: { value: 0 },
     });
     this.bloomA = target(1, 1);
     this.bloomB = target(1, 1);
@@ -56,21 +65,32 @@ c=clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);c=pow(c,vec3(1./2.2));c*=1.
   ) {
     this.compose(r, w, read);
   }
-  renderToScreen(r: T.WebGLRenderer, read: T.WebGLRenderTarget) {
-    this.compose(r, null, read);
+  renderToScreen(
+    r: T.WebGLRenderer,
+    read: T.WebGLRenderTarget,
+    overlay: T.WebGLRenderTarget | null = null,
+  ) {
+    this.compose(r, null, read, overlay);
   }
   private compose(
     r: T.WebGLRenderer,
     w: T.WebGLRenderTarget | null,
     read: T.WebGLRenderTarget,
+    overlay: T.WebGLRenderTarget | null = null,
   ) {
+    this.extra.uOverlay.value = overlay?.texture ?? read.texture;
+    this.extra.uOverlayAmount.value = overlay ? 0.22 : 0;
     if (this.params.bloom > 0) {
       const u = this.blur.material.uniforms;
+      u.uOverlay.value = this.extra.uOverlay.value;
+      u.uOverlayAmount.value = this.extra.uOverlayAmount.value;
       u.image.value = read.texture;
       u.direction.value.set(1 / this.bloomA.width, 0);
       u.threshold.value = this.params.threshold;
       this.blur.render(r, this.bloomA);
       u.image.value = this.bloomA.texture;
+      // The horizontal pass has already composited and thresholded the image.
+      u.uOverlayAmount.value = 0;
       u.direction.value.set(0, 1 / this.bloomA.height);
       u.threshold.value = 0;
       this.blur.render(r, this.bloomB);

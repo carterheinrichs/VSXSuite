@@ -178,17 +178,22 @@ export class VisualizerHost {
       this.swap();
       read = this.a;
     }
+    let overlay: T.WebGLRenderTarget | null = null;
     if (this.settings.overlay && active.id !== "neon") {
       const neon = this.modules[0] as NeonFeedbackModule;
       neon.layered = true;
       neon.update(audio, this.elapsed, dt);
-      neon.render(this.renderer, this.b, read);
-      this.swap();
-      read = this.a;
+      if (this.settings.postFX) {
+        overlay = neon.renderFeedback(this.renderer);
+      } else {
+        neon.render(this.renderer, this.b, read);
+        this.swap();
+        read = this.a;
+      }
     }
     if (this.settings.postFX) {
       this.post.update(audio, this.elapsed, dt);
-      this.post.renderToScreen(this.renderer, read);
+      this.post.renderToScreen(this.renderer, read, overlay);
     } else {
       this.output.material.uniforms.image.value = read.texture;
       this.output.material.uniforms.raw.value = 1;

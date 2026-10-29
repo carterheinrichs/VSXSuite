@@ -23,7 +23,13 @@ export function target(w: number, h: number, depth = false) {
 export class FullscreenPass {
   readonly scene = new T.Scene();
   readonly camera = new T.Camera();
-  readonly geometry = new T.PlaneGeometry(2, 2);
+  // UVs extrapolate across one oversized triangle to cover the viewport.
+  readonly geometry = new T.BufferGeometry()
+    .setAttribute(
+      "position",
+      new T.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3),
+    )
+    .setAttribute("uv", new T.Float32BufferAttribute([0, 0, 2, 0, 0, 2], 2));
   readonly material: T.ShaderMaterial;
   constructor(fragment: string, uniforms: Record<string, T.IUniform>) {
     this.material = new T.ShaderMaterial({
@@ -37,7 +43,14 @@ export class FullscreenPass {
   }
   render(renderer: T.WebGLRenderer, output: T.WebGLRenderTarget | null) {
     renderer.setRenderTarget(output);
-    renderer.render(this.scene, this.camera);
+    // The opaque pass overwrites every pixel and does not use depth.
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    try {
+      renderer.render(this.scene, this.camera);
+    } finally {
+      renderer.autoClear = autoClear;
+    }
   }
   dispose() {
     this.geometry.dispose();
