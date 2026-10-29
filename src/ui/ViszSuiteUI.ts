@@ -2,11 +2,6 @@ import { Pane } from "tweakpane";
 import type { VisualizerHost } from "../core/VisualizerHost";
 import type { AudioEngine } from "../audio/AudioEngine";
 import type { IVisualModule } from "../core/types";
-const descriptions: Record<string, string> = {
-  neon: "A living echo. Infinite color, folded through time.",
-  fractal: "An endless flight through iridescent liquid geometry.",
-  ferrofluid: "Magnetic sculpture. Sound, suspended in liquid metal.",
-};
 export class ViszSuiteUI {
   private readonly pane: Pane;
   private readonly abort = new AbortController();
@@ -36,7 +31,7 @@ export class ViszSuiteUI {
       })
       .on("change", (e) => {
         host.select(e.value);
-        this.title();
+        this.syncSceneButtons();
       });
     visual.addBinding(host.settings, "overlay", { label: "Neon overlay" });
     visual.addBinding(host.settings, "postFX", { label: "Master FX" });
@@ -123,7 +118,7 @@ export class ViszSuiteUI {
           () => {
             this.host.select(button.dataset.scene!);
             this.pane.refresh();
-            this.title();
+            this.syncSceneButtons();
           },
           { signal },
         );
@@ -264,7 +259,7 @@ export class ViszSuiteUI {
       this.transport();
     };
     host.onError = (message) => this.error(message);
-    this.title();
+    this.syncSceneButtons();
     this.transport();
   }
   private formatTime(seconds: number) {
@@ -298,9 +293,9 @@ export class ViszSuiteUI {
     this.host.post.params.bloom = bloom;
     this.host.settings.postFX = true;
     this.pane.refresh();
-    this.title();
+    this.syncSceneButtons();
   }
-  private title() {
+  private syncSceneButtons() {
     document
       .querySelectorAll<HTMLButtonElement>("[data-scene]")
       .forEach((button) => {
@@ -309,10 +304,6 @@ export class ViszSuiteUI {
           String(button.dataset.scene === this.host.settings.scene),
         );
       });
-    document.querySelector("#scene-title")!.textContent =
-      this.host.modules.find((m) => m.id === this.host.settings.scene)!.name;
-    document.querySelector("#scene-description")!.textContent =
-      descriptions[this.host.settings.scene];
   }
   private source() {
     document.querySelector("#source-label")!.textContent =

@@ -36,15 +36,15 @@ test("HDR scenes, audio transport, presets and resizing work without shader erro
     .not.toContain("scaleX(0)");
   await page.getByRole("button", { name: "02 ATMOSPHERES" }).click();
   await page.getByRole("button", { name: "CHROME / infinite drift" }).click();
-  await expect(page.locator("#scene-title")).toHaveText("Liquid infinity");
+  await expect(page.locator('[data-scene="fractal"]')).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({ path: "test-results/fractal.png" });
   await page
     .getByRole("button", { name: "AFTERHOURS / magnetic bloom" })
     .click();
-  await expect(page.locator("#scene-title")).toHaveText("Magnetic matter");
+  await expect(page.locator('[data-scene="ferrofluid"]')).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({ path: "test-results/ferrofluid.png" });
   await page.getByRole("button", { name: "PRISM / electric dreams" }).click();
-  await expect(page.locator("#scene-title")).toHaveText("Neon feedback");
+  await expect(page.locator('[data-scene="neon"]')).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({ path: "test-results/neon.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("#stage")).toHaveJSProperty("clientWidth", 390);

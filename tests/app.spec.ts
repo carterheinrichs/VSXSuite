@@ -17,7 +17,7 @@ test("scene shortcuts, focus view and keyboard playback stay accessible", async 
   const liquid = page.getByRole("button", { name: "Liquid", exact: true });
   await liquid.click();
   await expect(liquid).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#scene-title")).toHaveText("Liquid infinity");
+  await expect(page.locator('[data-scene="fractal"]')).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", { name: "Hide controls", exact: true })
     .click();
