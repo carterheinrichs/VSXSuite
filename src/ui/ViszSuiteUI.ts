@@ -116,6 +116,69 @@ export class ViszSuiteUI {
     const fileInput = document.querySelector<HTMLInputElement>("#file-input")!;
     const signal = this.abort.signal;
     document
+      .querySelectorAll<HTMLButtonElement>("[data-scene]")
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => {
+            this.host.select(button.dataset.scene!);
+            this.pane.refresh();
+            this.title();
+          },
+          { signal },
+        );
+      });
+    const focus = document.querySelector<HTMLButtonElement>("#focus")!;
+    focus.addEventListener(
+      "click",
+      () => {
+        const hidden = document.body.classList.toggle("focus-mode");
+        focus.textContent = hidden ? "Show controls" : "Hide controls";
+        focus.setAttribute("aria-pressed", String(hidden));
+      },
+      { signal },
+    );
+    document.querySelector("#fullscreen")!.addEventListener(
+      "click",
+      () => {
+        void this.runView(async () => {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await document.documentElement.requestFullscreen();
+        });
+      },
+      { signal },
+    );
+    document.addEventListener(
+      "fullscreenchange",
+      () => {
+        document.querySelector("#fullscreen")!.textContent =
+          document.fullscreenElement ? "Exit fullscreen" : "Fullscreen";
+      },
+      { signal },
+    );
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (
+          event.code !== "Space" ||
+          event.repeat ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey
+        )
+          return;
+        if (
+          (event.target as HTMLElement).closest(
+            "input, select, textarea, button, a, [contenteditable]",
+          )
+        )
+          return;
+        event.preventDefault();
+        void this.run(() => audio.togglePlayback());
+      },
+      { signal },
+    );
+    document
       .querySelector("#play")!
       .addEventListener(
         "click",
@@ -201,6 +264,8 @@ export class ViszSuiteUI {
       this.transport();
     };
     host.onError = (message) => this.error(message);
+    this.title();
+    this.transport();
   }
   private formatTime(seconds: number) {
     const whole = Math.max(0, Math.floor(seconds));
@@ -236,6 +301,14 @@ export class ViszSuiteUI {
     this.title();
   }
   private title() {
+    document
+      .querySelectorAll<HTMLButtonElement>("[data-scene]")
+      .forEach((button) => {
+        button.setAttribute(
+          "aria-pressed",
+          String(button.dataset.scene === this.host.settings.scene),
+        );
+      });
     document.querySelector("#scene-title")!.textContent =
       this.host.modules.find((m) => m.id === this.host.settings.scene)!.name;
     document.querySelector("#scene-description")!.textContent =
@@ -270,6 +343,13 @@ export class ViszSuiteUI {
     } catch (e) {
       this.error(e instanceof Error ? e.message : "Unable to open audio.");
       this.source();
+    }
+  }
+  private async runView(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (e) {
+      this.error(e instanceof Error ? e.message : "Fullscreen is unavailable.");
     }
   }
   error(message: string) {

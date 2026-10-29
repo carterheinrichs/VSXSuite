@@ -1,5 +1,5 @@
 :root {
-  font-family: "DM Sans", sans-serif;
+  font-family: "DM Sans", system-ui, sans-serif;
   color: #edf0f7;
   background: #08090f;
   font-synthesis: none;
@@ -49,7 +49,7 @@ header {
 .brand i {
   display: block;
   font:
-    9px "DM Sans",
+    9px "DM Sans", system-ui,
     sans-serif;
   letter-spacing: 2.1px;
   color: #8b919f;
@@ -106,7 +106,7 @@ main p {
   border-radius: 9px;
   box-shadow: 0 12px 50px #0005;
   --tp-base-background-color: #12131c;
-  --tp-base-font-family: "DM Sans", sans-serif;
+  --tp-base-font-family: "DM Sans", system-ui, sans-serif;
   --tp-base-border-radius: 8px;
   --tp-base-shadow-color: transparent;
   --tp-button-background-color: #30313d;
@@ -137,9 +137,10 @@ footer {
   align-items: center;
   gap: 14px;
 }
-button {
+header button,
+footer button {
   font:
-    600 10px "DM Sans",
+    600 10px "DM Sans", system-ui,
     sans-serif;
   letter-spacing: 1px;
   padding: 13px 17px;
@@ -149,7 +150,8 @@ button {
   border-radius: 5px;
   cursor: pointer;
 }
-button:hover {
+header button:hover,
+footer button:hover {
   background: #ffffff17;
   border-color: #c9a9ff;
 }
@@ -267,7 +269,7 @@ a:focus-visible {
 }
 #drop small {
   font:
-    10px "DM Sans",
+    10px "DM Sans", system-ui,
     sans-serif;
   letter-spacing: 3px;
   color: #b8abc9;
@@ -343,3 +345,133 @@ a:focus-visible {
 #rack button {
   letter-spacing: 0.4px;
 }
+/* Stable, opaque chrome keeps controls legible over every scene. */
+header {
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 86px;
+  padding: 18px 30px;
+  gap: 20px;
+  background: #0b0d16;
+  border-bottom: 1px solid #ffffff16;
+}
+header nav,
+.view-actions {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+header button {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  padding: 10px 16px;
+}
+.scene-switcher {
+  padding: 4px;
+  border: 1px solid #ffffff18;
+  border-radius: 10px;
+  background: #141724;
+}
+.scene-switcher button {
+  border-color: transparent;
+  background: transparent;
+  color: #b9c0d4;
+}
+.scene-switcher button[aria-pressed="true"] {
+  color: #f2edff;
+  background: #39304f;
+  border-color: #aa88d34d;
+}
+#rack {
+  background: #141722;
+  color: #e8eaf2;
+  --tp-base-background-color: #141722;
+  --tp-base-font-family: system-ui, sans-serif;
+  --tp-container-background-color: #202432;
+  --tp-container-background-color-hover: #2a3042;
+  --tp-container-background-color-focus: #30364b;
+  --tp-container-background-color-active: #30364b;
+  --tp-container-foreground-color: #edf0fa;
+  --tp-container-unit-size: 30px;
+  --tp-label-foreground-color: #c0c8da;
+  --tp-input-background-color: #292f41;
+  --tp-input-background-color-hover: #343c52;
+  --tp-input-background-color-focus: #343c52;
+  --tp-input-background-color-active: #3d4660;
+  --tp-input-foreground-color: #f1e9ff;
+  --tp-button-background-color: #30384b;
+  --tp-button-foreground-color: #f1e9ff;
+  --tp-monitor-background-color: #202638;
+  --tp-monitor-foreground-color: #f1e9ff;
+  font-size: 12px;
+}
+#rack select,
+#rack option {
+  color: #f1e9ff;
+  background: #292f41;
+  color-scheme: dark;
+}
+#play {
+  min-width: 112px;
+  font-size: 12px;
+  padding: 15px 20px;
+}
+main {
+  max-width: calc(100vw - 370px);
+}
+main p {
+  color: #c1c7d6;
+}
+body.focus-mode #rack,
+body.focus-mode main {
+  display: none;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #d5c0ff;
+  outline-offset: 3px;
+}
+@media (max-width: 800px) {
+  header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .brand {
+    font-size: 21px;
+  }
+  .brand i {
+    font-size: 8px;
+  }
+  .scene-switcher {
+    order: 3;
+    width: 100%;
+  }
+  .scene-switcher button {
+    flex: 1;
+  }
+  header button {
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+  #rack {
+    top: 150px;
+    max-height: calc(100dvh - 350px);
+    width: 230px;
+  }
+  main {
+    max-width: calc(100vw - 40px);
+    bottom: 190px;
+  }
+  main h1 {
+    font-size: 28px;
+  }
+  main p,
+  .eyebrow {
+    display: none;
+  }
+}
+
+#rack { --tp-button-background-color-hover: #46516b; --tp-button-background-color-focus: #46516b; --tp-button-background-color-active: #53617e; }

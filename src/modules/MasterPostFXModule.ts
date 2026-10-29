@@ -7,11 +7,11 @@ export class MasterPostFXModule extends ShaderModule {
   readonly id = "post";
   readonly name = "Master polish";
   params = {
-    bloom: 0.65,
+    bloom: 0.35,
     threshold: 0.7,
-    chromatic: 0.3,
+    chromatic: 0.08,
     scanlines: false,
-    exposure: 1.2,
+    exposure: 1.05,
   };
   private bloomA!: T.WebGLRenderTarget;
   private bloomB!: T.WebGLRenderTarget;

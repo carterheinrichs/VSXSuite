@@ -15,15 +15,22 @@ void main(){
  trail=mix(trail,trail.gbr,.003*uDelta*60.);
  float angle=abs(mod(a+PI/uSymmetry,2.*PI/uSymmetry)-PI/uSymmetry);
  vec2 k=vec2(cos(angle),sin(angle))*r;
- float waveform=wave(fract(k.x*.75+.2));float spectrum=fft(clamp(r*.23,0.,1.));
- float ribbon=exp(-abs(k.y-.15-waveform*(.12+uBass*.15)-.09*sin(k.x*9.-uTime))*(170./(1.+uBeat)));
- float orbit=exp(-abs(r-(.32+.09*sin(a*uSymmetry+uTime*.5)+spectrum*.28)) * 130.);
+ float waveform=wave(fract(k.x*.75+.2));float spectrum=fft(clamp(r*.65,0.,1.));
+ // Pixel-aware filaments stay continuous as adaptive resolution changes.
+ float path=k.y-.12-waveform*(.055+uBass*.08)-.075*sin(k.x*11.-uTime*.6);
+ float width=max(fwidth(path),1.2/uResolution.y);
+ float ribbon=1.-smoothstep(.0015,.0015+width*1.5,abs(path));
+ float halo=exp(-abs(path)*65.)*.14;
+ float ring=r-(.29+.055*sin(a*uSymmetry+uTime*.35)+spectrum*.12);
+ float orbit=1.-smoothstep(.001,.001+max(fwidth(ring),1./uResolution.y)*1.5,abs(ring));
  // History is a moving spectral fabric behind the waveform ribbons.
  float history=texture2D(uAudioHistoryTexture,vec2(fract(angle/PI*2.),clamp(r*.55,0.,1.))).r;
- float threads=pow(max(0.,sin(r*55.-uTime*2.+history*9.)),22.)*history*.15;
- vec3 color=palette(r*.28+a*.06+uTime*.025+uHue);
- vec3 fresh=color*(ribbon*2.8+orbit*.8+threads)*uIntensity*(.2+uRms*2.);
- vec3 result=min(trail+fresh*uDelta*30.,vec3(18.));
+ float threads=pow(max(0.,sin(r*75.-uTime*.8+history*5.)),18.)*(.025+history*.12);
+ vec3 color=palette(r*.65+angle*.35+uTime*.018+uHue);
+ vec3 fresh=(color*(ribbon+halo)+palette(.5-r*.4+uHue)*orbit*.5+color*threads)*uIntensity*(.35+uRms*1.1);
+ // Balance injection against decay so trails preserve color and negative space.
+ vec3 result=trail+fresh*(1.-pow(uPersistence,uDelta*60.))*3.;
+ result*=1.-smoothstep(.55,1.15,r)*.045;
  // Keep the base scene out of the feedback loop; composite it only on output.
  gl_FragColor=vec4(result,1.);
 }`;
@@ -31,7 +38,7 @@ export class NeonFeedbackModule extends ShaderModule {
   readonly id = "neon";
   readonly name = "Neon feedback";
   params = {
-    persistence: 0.965,
+    persistence: 0.91,
     symmetry: 6,
     intensity: 1.25,
     warp: 0.3,
@@ -42,7 +49,7 @@ export class NeonFeedbackModule extends ShaderModule {
   private copy!: FullscreenPass;
   private readonly extra = {
     uFeedback: { value: null as T.Texture | null },
-    uPersistence: { value: 0.965 },
+    uPersistence: { value: 0.91 },
     uSymmetry: { value: 6 },
     uIntensity: { value: 1.25 },
     uWarp: { value: 0.3 },

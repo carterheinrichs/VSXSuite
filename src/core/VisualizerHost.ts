@@ -18,7 +18,7 @@ export class VisualizerHost {
     scene: "neon",
     overlay: false,
     postFX: true,
-    quality: 0.8,
+    quality: 1,
     autoQuality: true,
   };
   readonly stats = { fps: 60, width: 0, height: 0, softwareGPU: false };
@@ -137,7 +137,10 @@ export class VisualizerHost {
     this.recoveryTime = fps > 57 ? this.recoveryTime + this.qualityTime : 0;
     let scale = this.adaptiveScale;
     if (fps < 48)
-      scale = Math.max(0.3, scale * Math.max(0.55, Math.sqrt(fps / 55)));
+      scale = Math.max(
+        this.stats.softwareGPU ? 0.55 : 0.65,
+        scale * Math.max(0.75, Math.sqrt(fps / 55)),
+      );
     else if (this.recoveryTime > 8) {
       scale = Math.min(1, scale * 1.08);
       this.recoveryTime = 0;
