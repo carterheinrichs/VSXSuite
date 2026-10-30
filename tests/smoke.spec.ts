@@ -47,6 +47,11 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Laser cathedral",
     "Apex triangles",
     "Magnetic matter",
+    "Classic equalizer",
+    "Classic oscilloscope",
+    "Lissajous scope",
+    "Waterfall spectrogram",
+    "Classic starfield",
   ]);
   for (const [label, file] of [
     ["Aurora ribbons", "aurora"],
@@ -59,6 +64,11 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     ["Tesla plasma web", "tesla"],
     ["Laser cathedral", "cathedral"],
     ["Apex triangles", "triangles"],
+    ["Classic equalizer", "classic-spectrum"],
+    ["Classic oscilloscope", "oscilloscope"],
+    ["Lissajous scope", "lissajous"],
+    ["Waterfall spectrogram", "waterfall"],
+    ["Classic starfield", "starfield"],
   ]) {
     await page.locator("#rack select").selectOption({ label });
     await expect(page.locator("#rack select")).toHaveValue(label);

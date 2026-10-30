@@ -17,6 +17,13 @@ import {
 } from "../modules/ConsoleLightModules";
 import { RealisticFerrofluidModule } from "../modules/RealisticFerrofluidModule";
 import { MasterPostFXModule } from "../modules/MasterPostFXModule";
+import {
+  ClassicSpectrumModule,
+  OscilloscopeModule,
+  LissajousModule,
+  WaterfallModule,
+  StarfieldModule,
+} from "../modules/ClassicModules";
 export class VisualizerHost {
   readonly renderer: T.WebGLRenderer;
   readonly modules: IVisualModule[] = [
@@ -32,6 +39,11 @@ export class VisualizerHost {
     new LaserCathedralModule(),
     new ApexTrianglesModule(),
     new RealisticFerrofluidModule(),
+    new ClassicSpectrumModule(),
+    new OscilloscopeModule(),
+    new LissajousModule(),
+    new WaterfallModule(),
+    new StarfieldModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {
