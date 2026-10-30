@@ -6,6 +6,11 @@ test("page styling loads independently of application JavaScript", async ({
   // A cold module load must not expose the browser's unstyled HTML defaults.
   await page.route("**/src/main.ts", (route) => route.abort());
   await page.goto("/");
+  await expect(page).toHaveTitle("VSXSuite");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    "/favicon.svg",
+  );
   await expect(page.locator("header")).toHaveCSS("position", "fixed");
   await expect(page.locator("header")).toHaveCSS(
     "background-color",
