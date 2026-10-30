@@ -13,6 +13,7 @@ import {
   NexusSpectrumModule,
   TeslaPlasmaModule,
   LaserCathedralModule,
+  ApexTrianglesModule,
 } from "../modules/ConsoleLightModules";
 import { RealisticFerrofluidModule } from "../modules/RealisticFerrofluidModule";
 import { MasterPostFXModule } from "../modules/MasterPostFXModule";
@@ -29,6 +30,7 @@ export class VisualizerHost {
     new NexusSpectrumModule(),
     new TeslaPlasmaModule(),
     new LaserCathedralModule(),
+    new ApexTrianglesModule(),
     new RealisticFerrofluidModule(),
   ];
   readonly post = new MasterPostFXModule();

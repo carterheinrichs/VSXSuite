@@ -378,6 +378,74 @@ void main(){
  gl_FragColor=vec4(col,1.);
 }`;
 
+const triangles =
+  common +
+  `
+uniform float uIntensity,uTwist,uHue;
+float sdTri(vec2 p,float r){
+ const float k=1.7320508;
+ p.x=abs(p.x)-r;
+ p.y=p.y+r/k;
+ if(p.x+k*p.y>0.)p=vec2(p.x-k*p.y,-k*p.x-p.y)*.5;
+ p.x-=clamp(p.x,-2.*r,0.);
+ return -length(p)*sign(p.y);
+}
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
+ float t=uTime;
+ float r=length(p);
+ vec3 col=vec3(.003,.005,.016);
+ float px=1.3/uResolution.y;
+ float energy=(.58+uRms*1.15+uBeat*.6)*uIntensity;
+ // Background isometric triangle shard tessellation pulsing with the spectrum.
+ vec2 sg=rot(t*.05)*p*(5.5+uBass*.8);
+ sg.x+=sg.y*.57735;
+ vec2 id=floor(sg), f=fract(sg);
+ float orient=step(f.x,f.y);
+ float triEdge=min(min(f.x,1.-f.y),abs(f.x-f.y));
+ float cellHash=fract(sin(dot(id+orient*.5,vec2(12.9898,78.233)))*43758.5453);
+ float shardSpec=fft(cellHash*.85+.05);
+ float shardLine=1.-smoothstep(.02,.08,triEdge);
+ float shardFill=smoothstep(.45,.05,triEdge)*pow(shardSpec,1.6)*(.35+uBeat*.85);
+ vec3 shardCol=palette(cellHash*.45+r*.3-t*.02+uHue+.25);
+ col+=shardCol*(shardLine*.16+shardFill*.42)*exp(-r*1.35)*energy;
+ // Nested 3D tunnel of counter-rotating equilateral neon delta frames.
+ for(int i=0;i<16;i++){
+  float k=float(i);
+  float z=fract(k*(1./16.)-t*.085);
+  float iz=1.-z;
+  float sz=.04+z*z*1.55*(1.+uBass*.14+uBeat*.08);
+  if(abs(r-sz*.75)<.22+sz*.55){
+   vec2 shift=vec2(sin(iz*3.5+t*.3),cos(iz*2.8+t*.24))*.11*z;
+   float flip=mod(k,2.)*PI/3.;
+   vec2 q=rot(t*.18*(mod(k,2.)*2.-1.)+iz*uTwist*1.8+flip)*(p-shift);
+   float spec=fft(k*(.8/16.)+.05);
+   float waveMod=wave(clamp(atan(q.y,q.x)*(1./(2.*PI))+.5,0.,1.))*(.012+uMid*.025)*z;
+   float d=abs(sdTri(q,sz)+waveMod);
+   float edge=1.-smoothstep(px,px*2.7,d);
+   float glow=exp(-d/(.007+sz*.02+spec*.015));
+   float fade=smoothstep(0.,.1,z)*(1.-smoothstep(.82,1.,z));
+   vec3 tCol=palette(k*(.65/16.)+iz*.2+t*.025+uHue);
+   col+=tCol*(edge*1.05+glow*.4)*fade*(energy+spec*.65*uIntensity);
+  }
+ }
+ // Fracturing 4-piece Sierpinski / Triforce delta core exploding outward on beats.
+ vec2 cp=rot(-t*.32)*p;
+ float coreSz=.12+uBass*.045+uBeat*.04;
+ float centerD=abs(sdTri(-cp,coreSz*.48));
+ float split=.065+uBass*.04+uBeat*.055;
+ for(int j=0;j<3;j++){
+  float ang=float(j)*(2.*PI/3.)+PI/6.;
+  vec2 sub=cp-vec2(cos(ang),sin(ang))*split;
+  centerD=min(centerD,abs(sdTri(sub,coreSz*.46)));
+ }
+ float coreEdge=1.-smoothstep(px,px*2.8,centerD)+exp(-centerD*58.)*.65;
+ col+=palette(uHue+.15+r*.5)*coreEdge*energy*1.25;
+ col+=palette(uHue+.3)*(.032+uBeat*.035)/(.06+r);
+ col*=1.-smoothstep(.45,1.45,r)*.76;
+ gl_FragColor=vec4(col,1.);
+}`;
+
 abstract class ConsoleLightModule extends ShaderModule {
   abstract params: {
     speed: number;
@@ -495,4 +563,11 @@ export class LaserCathedralModule extends ConsoleLightModule {
   readonly name = "Laser cathedral";
   protected readonly fragment = cathedral;
   params = { speed: 0.9, intensity: 1.35, symmetry: 6, hue: 0.82 };
+}
+
+export class ApexTrianglesModule extends ConsoleLightModule {
+  readonly id = "triangles";
+  readonly name = "Apex triangles";
+  protected readonly fragment = triangles;
+  params = { speed: 1, intensity: 1.35, twist: 1.1, hue: 0.16 };
 }

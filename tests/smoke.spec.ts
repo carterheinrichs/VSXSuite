@@ -45,6 +45,7 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Nexus spectrum",
     "Tesla plasma web",
     "Laser cathedral",
+    "Apex triangles",
     "Magnetic matter",
   ]);
   for (const [label, file] of [
@@ -57,6 +58,7 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     ["Nexus spectrum", "nexus"],
     ["Tesla plasma web", "tesla"],
     ["Laser cathedral", "cathedral"],
+    ["Apex triangles", "triangles"],
   ]) {
     await page.locator("#rack select").selectOption({ label });
     await expect(page.locator("#rack select")).toHaveValue(label);
