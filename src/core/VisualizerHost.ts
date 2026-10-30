@@ -9,6 +9,10 @@ import {
   XenonBladesModule,
   VectorLatticeModule,
   SolarMandalaModule,
+  HypernovaVortexModule,
+  NexusSpectrumModule,
+  TeslaPlasmaModule,
+  LaserCathedralModule,
 } from "../modules/ConsoleLightModules";
 import { RealisticFerrofluidModule } from "../modules/RealisticFerrofluidModule";
 import { MasterPostFXModule } from "../modules/MasterPostFXModule";
@@ -21,6 +25,10 @@ export class VisualizerHost {
     new XenonBladesModule(),
     new VectorLatticeModule(),
     new SolarMandalaModule(),
+    new HypernovaVortexModule(),
+    new NexusSpectrumModule(),
+    new TeslaPlasmaModule(),
+    new LaserCathedralModule(),
     new RealisticFerrofluidModule(),
   ];
   readonly post = new MasterPostFXModule();

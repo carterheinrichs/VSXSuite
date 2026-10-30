@@ -41,6 +41,10 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Xenon blades",
     "Vector lattice",
     "Solar mandala",
+    "Hypernova vortex",
+    "Nexus spectrum",
+    "Tesla plasma web",
+    "Laser cathedral",
     "Magnetic matter",
   ]);
   for (const [label, file] of [
@@ -49,6 +53,10 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     ["Xenon blades", "blades"],
     ["Vector lattice", "lattice"],
     ["Solar mandala", "mandala"],
+    ["Hypernova vortex", "hypernova"],
+    ["Nexus spectrum", "nexus"],
+    ["Tesla plasma web", "tesla"],
+    ["Laser cathedral", "cathedral"],
   ]) {
     await page.locator("#rack select").selectOption({ label });
     await expect(page.locator("#rack select")).toHaveValue(label);

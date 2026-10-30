@@ -19,9 +19,24 @@ test("panel scene selection, focus view and keyboard playback stay accessible", 
   page,
 }) => {
   await page.goto("/");
+  const visibleFolders = page.locator(
+    "#rack .tp-fldv:not(.tp-v-hidden) > .tp-fldv_b > .tp-fldv_t",
+  );
+  await expect(visibleFolders).toHaveText([
+    "01  VISUAL ENGINE",
+    "NEON FEEDBACK",
+    "MASTER POLISH",
+    "02  AUDIO SOURCE",
+  ]);
   const scene = page.locator("#rack select");
   await scene.selectOption({ label: "Aurora ribbons" });
   await expect(scene).toHaveValue("Aurora ribbons");
+  await expect(visibleFolders).toHaveText([
+    "01  VISUAL ENGINE",
+    "AURORA RIBBONS",
+    "MASTER POLISH",
+    "02  AUDIO SOURCE",
+  ]);
   await page
     .getByRole("button", { name: "Hide controls", exact: true })
     .click();

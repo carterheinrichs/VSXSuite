@@ -23,6 +23,7 @@ export class ViszSuiteUI {
       title: "CONTROL / RACK",
     });
     const visual = this.pane.addFolder({ title: "01  VISUAL ENGINE" });
+    const sceneFolders = new Map<string, ReturnType<Pane["addFolder"]>>();
     visual
       .addBinding(host.settings, "scene", {
         label: "Scene",
@@ -30,7 +31,11 @@ export class ViszSuiteUI {
           host.modules.map((module) => [module.name, module.id]),
         ),
       })
-      .on("change", (event) => host.select(event.value));
+      .on("change", (event) => {
+        host.select(event.value);
+        for (const [id, folder] of sceneFolders)
+          folder.hidden = id !== event.value;
+      });
     visual.addBinding(host.settings, "overlay", { label: "Neon overlay" });
     visual.addBinding(host.settings, "postFX", { label: "Master FX" });
     visual
@@ -52,6 +57,10 @@ export class ViszSuiteUI {
         title: module.name.toUpperCase(),
         expanded: false,
       });
+      if (module !== host.post) {
+        folder.hidden = module.id !== host.settings.scene;
+        sceneFolders.set(module.id, folder);
+      }
       for (const key of Object.keys(module.params)) {
         const value = module.params[key];
         if (typeof value === "boolean") folder.addBinding(module.params, key);
