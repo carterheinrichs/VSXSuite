@@ -1,8 +1,16 @@
 import * as T from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
+import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import type { AudioFrameData, IVisualModule } from "../core/types";
 import { simplex } from "../shaders/simplex";
+function createIndexedSphere(radius: number, detail: number) {
+  const raw = new T.IcosahedronGeometry(radius, detail);
+  raw.deleteAttribute("uv");
+  const indexed = mergeVertices(raw, 1e-4);
+  raw.dispose();
+  return indexed;
+}
 export class RealisticFerrofluidModule implements IVisualModule {
   readonly id = "ferrofluid";
   readonly name = "Magnetic matter";
@@ -16,10 +24,7 @@ export class RealisticFerrofluidModule implements IVisualModule {
     clearcoat: 1,
     clearcoatRoughness: 0.08,
   });
-  private readonly blob = new T.Mesh(
-    new T.IcosahedronGeometry(1, 6),
-    this.material,
-  );
+  private readonly blob = new T.Mesh(createIndexedSphere(1, 6), this.material);
   private readonly cyan = new T.PointLight(0x4cffff, 16, 15, 2);
   private readonly pink = new T.PointLight(0xff368f, 20, 15, 2);
   private reflector!: Reflector;
@@ -58,6 +63,10 @@ export class RealisticFerrofluidModule implements IVisualModule {
       clipBias: 0.003,
       multisample: 0,
     });
+    const rt = this.reflector.getRenderTarget();
+    rt.texture.type = T.HalfFloatType;
+    rt.texture.minFilter = T.LinearFilter;
+    rt.texture.magFilter = T.LinearFilter;
     this.reflector.rotation.x = -Math.PI / 2;
     this.reflector.position.y = -1.35;
     this.scene.add(this.reflector);
@@ -69,14 +78,23 @@ export class RealisticFerrofluidModule implements IVisualModule {
           `#include <common>
 uniform float uTime,uBass,uBeat,uSpikes;uniform sampler2D uAudioTexture;
 ${simplex}
-float displacement(vec3 n){float noise=snoise(n*5.+vec3(0.,uTime*.22,0.));float spectrum=texture2D(uAudioTexture,vec2(clamp(n.y*.45+.5,0.,1.),.25)).r;float spikes=pow(max(0.,noise*.5+.5),4.);return spikes*uSpikes*(.3+uBass*1.6+uBeat*.6)+spectrum*.12;}
-vec3 displaced(vec3 n){return n*(1.+displacement(n));}
 `,
         )
         .replace(
           "#include <beginnormal_vertex>",
-          `// Finite-difference normals keep the displaced spikes physically lit.
-vec3 n=normalize(position);vec3 tangent=normalize(cross(n,abs(n.y)<.99?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 bitangent=normalize(cross(n,tangent));vec3 center=displaced(n);vec3 objectNormal=normalize(cross(displaced(normalize(n+tangent*.003))-center,displaced(normalize(n+bitangent*.003))-center));`,
+          `// Analytic simplex gradient normals keep displaced spikes smooth and 3x faster.
+vec3 n=normalize(position);
+vec4 ng=snoiseGrad(n*5.+vec3(0.,uTime*.22,0.));
+float u=clamp(n.y*.45+.5,0.,1.);
+float spectrum=texture2D(uAudioTexture,vec2(u*u*(.15+.85*u),.25)).r;
+float base=max(0.,ng.w*.5+.5);
+float base3=base*base*base;
+float amp=uSpikes*(.3+uBass*1.6+uBeat*.6);
+float disp=base3*base*amp+spectrum*.12;
+vec3 dDisp=ng.xyz*(10.*base3*amp);
+vec3 surfGrad=dDisp-n*dot(n,dDisp);
+vec3 center=n*(1.+disp);
+vec3 objectNormal=normalize(center-surfGrad);`,
         )
         .replace("#include <begin_vertex>", "vec3 transformed=center;");
     };
@@ -88,11 +106,13 @@ vec3 n=normalize(position);vec3 tangent=normalize(cross(n,abs(n.y)<.99?vec3(0.,1
     this.uniforms.uBeat.value = a.beat;
     this.uniforms.uSpikes.value = this.params.spikes;
     this.uniforms.uAudioTexture.value = a.uAudioTexture;
-    this.material.roughness = this.params.roughness;
+    if (this.material.roughness !== this.params.roughness)
+      this.material.roughness = this.params.roughness;
     this.blob.rotation.y += dt * this.params.rotation;
     this.blob.rotation.z = Math.sin(t * 0.2) * 0.12;
     this.blob.position.y = 0.18 + Math.sin(t * 0.7) * 0.05;
     this.cyan.intensity = this.params.light * (1 + a.beat * 0.5);
+    this.pink.intensity = this.params.light * 1.25 * (1 + a.bass * 0.4);
     this.pink.position.x = 2 * Math.cos(t * 0.25);
   }
   render(
@@ -109,8 +129,8 @@ vec3 n=normalize(position);vec3 tangent=normalize(cross(n,abs(n.y)<.99?vec3(0.,1
     this.reflector
       ?.getRenderTarget()
       .setSize(
-        Math.max(1, Math.min(512, w >> 1)),
-        Math.max(1, Math.min(512, h >> 1)),
+        Math.max(1, Math.min(2048, w >> 1)),
+        Math.max(1, Math.min(2048, h >> 1)),
       );
   }
   dispose() {

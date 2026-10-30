@@ -70,15 +70,16 @@ export class VisualizerHost {
     this.renderer.toneMapping = T.NoToneMapping;
     this.renderer.setClearColor(0x000000, 1);
     this.a = target(1, 1, true);
-    this.b = target(1, 1, true);
+    this.b = target(1, 1, false);
     this.output = new FullscreenPass(
-      `varying vec2 vUv;uniform sampler2D image;uniform float raw;void main(){vec3 c=texture2D(image,vUv).rgb;if(raw>.5)c=pow(c/(1.+c),vec3(1./2.2));gl_FragColor=vec4(c,1.);}`,
+      `precision highp float;varying vec2 vUv;uniform sampler2D image;uniform float raw;void main(){vec3 c=texture2D(image,vUv).rgb;if(raw>.5)c=pow(c/(1.+c),vec3(1./2.2));float n=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));c=clamp(c+vec3(n-.5)/255.,0.,1.);gl_FragColor=vec4(c,1.);}`,
       { image: { value: null }, raw: { value: 0 } },
     );
     for (let i = 0; i < this.modules.length; i++)
       this.modules[i].init(this.renderer, 1, 1);
     this.post.init(this.renderer, 1, 1);
     this.resize();
+    this.clear();
     window.addEventListener("resize", this.resize);
     document.addEventListener("visibilitychange", this.visibility);
     canvas.addEventListener("webglcontextlost", this.contextLost);
@@ -103,19 +104,22 @@ export class VisualizerHost {
   };
   resize = () => {
     if (this.exporting) return;
-    // CSS dimensions, not devicePixelRatio: HDR multi-pass rendering at 4K/HiDPI
-    // silently consumed millions of extra fragments on every pass.
-    const budget = this.settings.autoQuality ? this.pixelBudget : 1920 * 1080;
+    // Bounded CSS budget when autoQuality is active; unlocks native HiDPI/4K when manual.
+    const dpr = this.settings.autoQuality
+      ? 1
+      : Math.min(window.devicePixelRatio || 1, 2);
+    const viewW = window.innerWidth * dpr;
+    const viewH = window.innerHeight * dpr;
+    const budget = this.settings.autoQuality ? this.pixelBudget : 3840 * 2160;
     const scale =
-      Math.min(
-        this.settings.quality,
-        Math.sqrt(budget / (window.innerWidth * window.innerHeight)),
-      ) * (this.settings.autoQuality ? this.adaptiveScale : 1);
-    const w = Math.max(1, Math.floor(window.innerWidth * scale)),
-      h = Math.max(1, Math.floor(window.innerHeight * scale));
+      Math.min(this.settings.quality, Math.sqrt(budget / (viewW * viewH))) *
+      (this.settings.autoQuality ? this.adaptiveScale : 1);
+    const w = Math.max(1, Math.floor(viewW * scale)),
+      h = Math.max(1, Math.floor(viewH * scale));
     this.setSize(w, h);
   };
-  private setSize(w: number, h: number) {
+  private setSize(w: number, h: number, clear = false) {
+    if (w === this.stats.width && h === this.stats.height && !clear) return;
     this.renderer.setSize(w, h, false);
     this.stats.width = w;
     this.stats.height = h;
@@ -123,17 +127,18 @@ export class VisualizerHost {
     this.b.setSize(w, h);
     for (let i = 0; i < this.modules.length; i++) this.modules[i].resize(w, h);
     this.post.resize(w, h);
-    this.clear();
+    if (clear) this.clear();
   }
   beginOfflineExport(width: number, height: number) {
     this.exporting = true;
     cancelAnimationFrame(this.frameId);
-    this.setSize(width, height);
+    this.setSize(width, height, true);
   }
   endOfflineExport() {
     this.exporting = false;
     this.previous = 0;
     this.resize();
+    this.clear();
     if (!this.disposed && !this.lost && !document.hidden)
       this.frameId = requestAnimationFrame(this.tick);
   }
@@ -174,11 +179,6 @@ export class VisualizerHost {
       this.resize();
     }
   }
-  private swap() {
-    const temp = this.a;
-    this.a = this.b;
-    this.b = temp;
-  }
   // Application-owned frame paths reuse all objects, typed arrays, vectors and callbacks.
   private tick = (now: number) => {
     if (this.disposed || this.lost) return;
@@ -211,8 +211,7 @@ export class VisualizerHost {
     if (active.id === "neon")
       read = (active as NeonFeedbackModule).renderFeedback(this.renderer);
     else {
-      active.render(this.renderer, this.b, this.a);
-      this.swap();
+      active.render(this.renderer, this.a, this.b);
       read = this.a;
     }
     let overlay: T.WebGLRenderTarget | null = null;
@@ -224,8 +223,7 @@ export class VisualizerHost {
         overlay = neon.renderFeedback(this.renderer);
       } else {
         neon.render(this.renderer, this.b, read);
-        this.swap();
-        read = this.a;
+        read = this.b;
       }
     }
     if (this.settings.postFX) {

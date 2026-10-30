@@ -159,6 +159,8 @@ export class AudioEngine {
     this.bytes.fill(0);
     this.waveform.fill(128);
     this.history.fill(0);
+    this.texture.needsUpdate = true;
+    this.historyTexture.needsUpdate = true;
   }
   async file(file: File) {
     await this.ready();
@@ -260,8 +262,8 @@ export class AudioEngine {
     }
     this.history.copyWithin(WIDTH, 0, WIDTH * (HISTORY - 1));
     this.history.set(this.spectrum, 0);
+    // historyTexture is marked dirty on demand by modules that sample it (NeonFeedbackModule).
     this.texture.needsUpdate = true;
-    this.historyTexture.needsUpdate = true;
     const hz =
       (offline?.buffer.sampleRate ?? this.context?.sampleRate ?? 48000) / 1024;
     const smoothing = 1 - Math.exp(-dt * 12);

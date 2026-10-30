@@ -8,8 +8,9 @@ uniform sampler2D uAudioTexture,uAudioHistoryTexture,uPrevious;
 const float PI=3.14159265359;
 mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
 vec3 palette(float t){return .55+.45*cos(6.28318*(vec3(0.0,.33,.67)+t));}
-float fft(float x){return texture2D(uAudioTexture,vec2(clamp(x,0.,1.),.25)).r;}
+float fft(float x){float u=clamp(x,0.,1.);return texture2D(uAudioTexture,vec2(u*u*(.15+.85*u),.25)).r;}
 float wave(float x){return texture2D(uAudioTexture,vec2(clamp(x,0.,1.),.75)).r*2.-1.;}
+vec3 dither(vec2 pos){float n=fract(52.9829189*fract(dot(pos,vec2(.06711056,.00583715))));return vec3(n-.5)/255.;}
 `;
 export function target(w: number, h: number, depth = false) {
   return new T.WebGLRenderTarget(w, h, {

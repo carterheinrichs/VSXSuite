@@ -23,6 +23,16 @@ export interface ExportProgress {
   seconds: number;
   phase: string;
 }
+function yieldToMain(): Promise<void> {
+  if (typeof MessageChannel !== "undefined") {
+    return new Promise<void>((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => resolve();
+      channel.port2.postMessage(null);
+    });
+  }
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
 export class VideoExporter {
   private controller: AbortController | null = null;
   get active() {
@@ -110,6 +120,7 @@ export class VideoExporter {
       output.addAudioTrack(soundtrack);
       await output.start();
       const total = Math.ceil(capture.buffer.duration * fps);
+      const dt = 1 / fps;
       // Audio is encoded directly from PCM, independent of real-time playback.
       onProgress({ frame: 0, total, seconds: 0, phase: "Encoding music" });
       await soundtrack.add(capture.buffer);
@@ -118,24 +129,21 @@ export class VideoExporter {
       let lastYield = performance.now();
       for (let frame = 0; frame < total; frame++) {
         check();
-        const time = frame / fps;
-        analysis.at(time);
-        const data = analysisAudio.update(time, 1 / fps, analysis);
-        host.renderFrame(data, time, 1 / fps);
+        const time = frame * dt;
+        analysis.at(time, dt);
+        const data = analysisAudio.update(time, dt, analysis);
+        host.renderFrame(data, time, dt);
         // Capture immediately after drawing: WebGL's drawing buffer need not be preserved.
-        await video.add(
-          time,
-          Math.min(1 / fps, capture.buffer.duration - time),
-        );
+        await video.add(time, Math.min(dt, capture.buffer.duration - time));
         onProgress({
           frame: frame + 1,
           total,
-          seconds: Math.min(capture.buffer.duration, (frame + 1) / fps),
+          seconds: Math.min(capture.buffer.duration, (frame + 1) * dt),
           phase: "Rendering",
         });
-        // Allow cancel, repaint and status updates even with a fast software encoder.
+        // Allow cancel, repaint and status updates without setTimeout clamping stalls.
         if (performance.now() - lastYield > 50) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          await yieldToMain();
           lastYield = performance.now();
         }
       }

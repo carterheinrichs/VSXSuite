@@ -6,7 +6,16 @@ import { common, FullscreenPass, target } from "../shaders/shared";
 // overlay pass. The feedback itself continues to contain neon only.
 const composite = `uniform sampler2D uOverlay;uniform float uOverlayAmount;
 vec3 compositeAt(sampler2D image,vec2 uv){vec3 c=texture2D(image,uv).rgb;if(uOverlayAmount>0.)c+=texture2D(uOverlay,uv).rgb*uOverlayAmount;return c;}`;
-const blur = `varying vec2 vUv;uniform sampler2D image;uniform vec2 direction;uniform float threshold;${composite}void main(){vec3 c=vec3(0.);for(int i=-4;i<=4;i++){vec3 s=compositeAt(image,vUv+direction*float(i)*2.);s=max(s-vec3(threshold),vec3(0.));c+=s*exp(-float(i*i)*.12)*.20236;}gl_FragColor=vec4(c,1.);}`;
+// 5-tap hardware-bilinear Gaussian covers a continuous 9-texel footprint with zero skipped texels.
+const blur = `varying vec2 vUv;uniform sampler2D image;uniform vec2 direction;uniform float threshold;${composite}
+vec3 sampleTap(vec2 uv){vec3 s=compositeAt(image,uv);return threshold>0.?max(s-vec3(threshold),vec3(0.)):s;}
+void main(){
+ vec2 d1=direction*1.41096,d2=direction*3.301535;
+ vec3 c=sampleTap(vUv)*.20065
+  +(sampleTap(vUv+d1)+sampleTap(vUv-d1))*.302119
+  +(sampleTap(vUv+d2)+sampleTap(vUv-d2))*.097556;
+ gl_FragColor=vec4(c,1.);
+}`;
 export class MasterPostFXModule extends ShaderModule {
   readonly id = "post";
   readonly name = "Master polish";
@@ -35,9 +44,20 @@ export class MasterPostFXModule extends ShaderModule {
         composite +
         `
 uniform sampler2D uBloom;uniform float uBloomAmount,uChromatic,uScanlines,uExposure;
-void main(){vec2 offset=(vUv-.5)*(.001+uBeat*.007)*uChromatic;vec3 c=vec3(compositeAt(uPrevious,vUv+offset).r,compositeAt(uPrevious,vUv).g,compositeAt(uPrevious,vUv-offset).b);if(uBloomAmount>0.)c+=texture2D(uBloom,vUv).rgb*uBloomAmount;c*=uExposure;
-// ACES fitted display transform, applied only after HDR compositing.
-c=clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);c=pow(c,vec3(1./2.2));c*=1.-uScanlines*.07*(.5+.5*sin(vUv.y*uResolution.y*PI));c*=1.-.25*pow(length(vUv-.5),2.);gl_FragColor=vec4(c,1.);}`,
+void main(){
+ vec2 offset=(vUv-.5)*(.001+uBeat*.007)*uChromatic;
+ vec3 center=compositeAt(uPrevious,vUv);
+ vec3 c=uChromatic>1e-4?vec3(compositeAt(uPrevious,vUv+offset).r,center.g,compositeAt(uPrevious,vUv-offset).b):center;
+ if(uBloomAmount>0.)c+=texture2D(uBloom,vUv).rgb*uBloomAmount;
+ c*=uExposure;
+ // ACES fitted display transform, applied only after HDR compositing.
+ c=clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);
+ c=pow(c,vec3(1./2.2));
+ c*=1.-uScanlines*.07*(.5+.5*sin(vUv.y*uResolution.y*PI));
+ c*=1.-.25*pow(length(vUv-.5),2.);
+ c=clamp(c+dither(gl_FragCoord.xy),0.,1.);
+ gl_FragColor=vec4(c,1.);
+}`,
       { ...this.uniforms, ...this.extra },
     );
     this.blur = new FullscreenPass(blur, {
@@ -101,8 +121,8 @@ c=clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);c=pow(c,vec3(1./2.2));c*=1.
   }
   override resize(w: number, h: number) {
     super.resize(w, h);
-    this.bloomA?.setSize(Math.max(1, w >> 2), Math.max(1, h >> 2));
-    this.bloomB?.setSize(Math.max(1, w >> 2), Math.max(1, h >> 2));
+    this.bloomA?.setSize(Math.max(1, w >> 1), Math.max(1, h >> 1));
+    this.bloomB?.setSize(Math.max(1, w >> 1), Math.max(1, h >> 1));
   }
   override dispose() {
     super.dispose();
