@@ -19,9 +19,19 @@ npm run preview     # serve the production bundle locally
 
 Install the test browser once with `npx playwright install chromium`. Deploy `dist/` to any static host. HTTPS or localhost is required for microphone/display capture. Browser audio starts after a user gesture. System capture support depends on the browser/OS and the selected source; enable “share audio” in the picker. The capture video track is required by display-capture APIs and is never rendered or transmitted. File codec support follows the browser's decoder.
 
+## Video export
+
+Open an audio file, choose an export resolution and frame rate in the header, and select **Export video**. The default is **1440p at 30 FPS**; 1080p, 4K and 60 FPS are also available. The download contains only the visualization and the full song, encoded as WebM (VP9 when available, otherwise VP8, with Opus audio). Current Chrome or Edge over HTTPS/localhost is recommended; export checks encoder support and reports unsupported settings.
+
+Export renders every frame at the chosen native resolution, independent of the preview window, render scale, adaptive quality and real-time FPS. Explicit timestamps keep the song and animation aligned even when rendering takes longer than the song. File audio is analyzed at those timestamps, and the soundtrack is encoded from the decoded audio buffer. Playback is suspended during export and restored afterward. Cancel discards the partial video. Progress reflects rendered song time, not elapsed wall time. Hidden tabs may run more slowly but do not lose frames.
+
+Video bitrate targets at 30 FPS are 20 Mbps for 1080p, 32 Mbps for 1440p and 60 Mbps for 4K, doubled at 60 FPS; audio targets 320 kbps. The encoder uses variable bitrate, so actual sizes vary. Encoded output is assembled in browser memory; long songs at 4K/60 can require substantial memory. These are SDR exports after the visualizer's HDR-to-display tone mapping. YouTube performs its own processing; wait for the desired HD resolution to finish processing before judging upload quality.
+
 ## Architecture
 
 - `src/audio/AudioEngine.ts`: source lifecycle, pre-rendered eight-second procedural beat, 1024-point FFT, six smoothed frequency bands, normalized RMS/centroid and adaptive low-frequency beat gate. Microphone/capture output is muted to avoid acoustic feedback. Local files loop.
+- `src/audio/FileAudioAnalysis.ts`: retained FFT and waveform sampling of decoded song audio at deterministic export timestamps.
+- `src/core/VideoExporter.ts`: fixed-resolution, frame-by-frame encoding with Mediabunny/WebCodecs, direct audio encoding, explicit timestamps, progress, cancellation and playback restoration.
 - `src/core/types.ts`: `AudioFrameData` and the `IVisualModule` contract.
 - `src/core/VisualizerHost.ts`: WebGL2 capability checks, two half-float HDR scene targets, explicit scene → optional neon overlay → optional master FX → display pipeline. Neon feeds its internal HDR buffer directly into post FX; overlay compositing is folded into bloom extraction and the final display pass when FX are enabled. Without FX, the separate overlay path is retained. Resize, adaptive resolution, visibility suspension, context-loss handling and disposal are centralized.
 - `src/modules/`: neon vortex with private feedback targets, folded gyroid sphere tracing, simplex-displaced physical ferrofluid with finite-difference normals and a planar reflector, plus quarter-resolution separable bloom/aberration/scanlines. Tone mapping occurs after HDR compositing.

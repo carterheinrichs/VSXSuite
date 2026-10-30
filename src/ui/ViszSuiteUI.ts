@@ -2,7 +2,7 @@ import { Pane } from "tweakpane";
 import type { VisualizerHost } from "../core/VisualizerHost";
 import type { AudioEngine } from "../audio/AudioEngine";
 import type { IVisualModule } from "../core/types";
-import { VideoExporter } from "../core/VideoExporter";
+import { VideoExporter, type EXPORT_PRESETS } from "../core/VideoExporter";
 export class ViszSuiteUI {
   private readonly pane: Pane;
   private readonly abort = new AbortController();
@@ -255,9 +255,6 @@ export class ViszSuiteUI {
     this.play.textContent = audio.playing ? "Ⅱ  PAUSE" : "▶  PLAY";
     this.play.setAttribute("aria-label", audio.playing ? "Pause" : "Play");
     this.seek.disabled = audio.duration === 0 || exporting;
-    if (exporting)
-      document.querySelector("#export-status")!.textContent =
-        `Exporting ${this.formatTime(audio.position)} / ${this.formatTime(audio.duration)} · Keep this tab visible. Video contains only the visualization and music.`;
     this.seek.max = String(audio.duration || 1);
     this.duration.textContent =
       audio.hasSource && !audio.duration
@@ -325,12 +322,26 @@ export class ViszSuiteUI {
     const file = document.querySelector<HTMLButtonElement>("#file")!;
     const download =
       document.querySelector<HTMLAnchorElement>("#download-video")!;
+    const quality =
+      document.querySelector<HTMLSelectElement>("#export-quality")!;
+    const fps = document.querySelector<HTMLSelectElement>("#export-fps")!;
     rack.inert = true;
     file.disabled = true;
+    quality.disabled = true;
+    fps.disabled = true;
     status.hidden = false;
     status.textContent = "Preparing full-song export…";
     try {
-      const recording = this.exporter.record(this.host, this.audio);
+      const recording = this.exporter.record(
+        this.host,
+        this.audio,
+        quality.value as keyof typeof EXPORT_PRESETS,
+        Number(fps.value) as 30 | 60,
+        (progress) => {
+          const percent = Math.floor((progress.frame / progress.total) * 100);
+          status.textContent = `${progress.phase} · ${quality.value.toUpperCase()} / ${fps.value} FPS · ${percent}% · ${this.formatTime(progress.seconds)} / ${this.formatTime(this.audio.duration)}. Every frame is rendered; this may take longer than the song.`;
+        },
+      );
       this.transport();
       const blob = await recording;
       if (this.downloadURL) URL.revokeObjectURL(this.downloadURL);
@@ -349,6 +360,8 @@ export class ViszSuiteUI {
     } finally {
       rack.inert = false;
       file.disabled = false;
+      quality.disabled = false;
+      fps.disabled = false;
       this.transport();
       this.source();
     }

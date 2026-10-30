@@ -1,5 +1,7 @@
 # Third-party notices
 
+Video encoding and WebM muxing use [Mediabunny](https://github.com/Vanilagy/mediabunny), by Vanilagy, under the Mozilla Public License 2.0. Its unmodified source and license are distributed in the `mediabunny` npm package; source is available at the linked repository. See `node_modules/mediabunny/LICENSE` for the full license.
+
 The 3D simplex noise algorithm in `src/shaders/simplex.ts` is adapted from webgl-noise by Ashima Arts and Stefan Gustavson.
 
 Copyright (C) 2011 Ashima Arts. All rights reserved.

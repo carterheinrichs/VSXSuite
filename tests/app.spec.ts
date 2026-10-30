@@ -46,7 +46,11 @@ test("panel scene selection, focus view and keyboard playback stay accessible", 
   await expect(page.getByRole("button", { name: /ATMOSPHERES/ })).toHaveCount(
     0,
   );
+  await expect(page.locator("header [data-scene], header nav")).toHaveCount(0);
   await expect(
-    page.locator("header select, header [data-scene], header nav"),
-  ).toHaveCount(0);
+    page.getByRole("combobox", { name: "Export resolution" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Export frame rate" }),
+  ).toBeVisible();
 });

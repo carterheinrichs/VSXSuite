@@ -14,6 +14,19 @@
       <div class="view-actions">
         <button id="focus" aria-pressed="false">Hide controls</button>
         <button id="fullscreen">Fullscreen</button>
+        <select
+          id="export-quality"
+          aria-label="Export resolution"
+          title="Export resolution is independent of preview quality"
+        >
+          <option value="1080p">1080p</option>
+          <option value="1440p" selected>1440p · YouTube</option>
+          <option value="4k">4K · highest detail</option>
+        </select>
+        <select id="export-fps" aria-label="Export frame rate">
+          <option value="30">30 FPS</option>
+          <option value="60">60 FPS · smoother</option>
+        </select>
         <button id="export" disabled>Export video</button>
         <a id="download-video" hidden>Download video</a>
       </div>

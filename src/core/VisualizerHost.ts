@@ -1,6 +1,6 @@
 import * as T from "three";
 import { AudioEngine } from "../audio/AudioEngine";
-import type { IVisualModule } from "./types";
+import type { AudioFrameData, IVisualModule } from "./types";
 import { target, FullscreenPass } from "../shaders/shared";
 import { NeonFeedbackModule } from "../modules/NeonFeedbackModule";
 import {
@@ -96,7 +96,7 @@ export class VisualizerHost {
   };
   private visibility = () => {
     if (document.hidden) cancelAnimationFrame(this.frameId);
-    else if (!this.disposed && !this.lost) {
+    else if (!this.disposed && !this.lost && !this.exporting) {
       this.previous = 0;
       this.frameId = requestAnimationFrame(this.tick);
     }
@@ -113,6 +113,9 @@ export class VisualizerHost {
       ) * (this.settings.autoQuality ? this.adaptiveScale : 1);
     const w = Math.max(1, Math.floor(window.innerWidth * scale)),
       h = Math.max(1, Math.floor(window.innerHeight * scale));
+    this.setSize(w, h);
+  };
+  private setSize(w: number, h: number) {
     this.renderer.setSize(w, h, false);
     this.stats.width = w;
     this.stats.height = h;
@@ -121,7 +124,19 @@ export class VisualizerHost {
     for (let i = 0; i < this.modules.length; i++) this.modules[i].resize(w, h);
     this.post.resize(w, h);
     this.clear();
-  };
+  }
+  beginOfflineExport(width: number, height: number) {
+    this.exporting = true;
+    cancelAnimationFrame(this.frameId);
+    this.setSize(width, height);
+  }
+  endOfflineExport() {
+    this.exporting = false;
+    this.previous = 0;
+    this.resize();
+    if (!this.disposed && !this.lost && !document.hidden)
+      this.frameId = requestAnimationFrame(this.tick);
+  }
   clear() {
     this.renderer.setRenderTarget(this.a);
     this.renderer.clear();
@@ -172,10 +187,25 @@ export class VisualizerHost {
     this.previous = now;
     this.elapsed += frameDelta;
     const audio = this.audio.update(this.elapsed, dt);
+    this.renderFrame(audio, this.elapsed, dt);
+    this.frames++;
+    this.statsTime += frameDelta;
+    if (this.statsTime > 0.25) {
+      this.stats.fps = Math.round(this.frames / this.statsTime);
+      this.frames = 0;
+      this.statsTime = 0;
+      this.onStats?.();
+    }
+    this.adapt(frameDelta);
+    this.frameId = requestAnimationFrame(this.tick);
+  };
+  renderFrame(audio: AudioFrameData, time: number, dt: number) {
+    if (this.disposed || this.lost)
+      throw new Error("Graphics unavailable during export.");
     let active = this.modules[0];
     for (let i = 0; i < this.modules.length; i++)
       if (this.modules[i].id === this.settings.scene) active = this.modules[i];
-    active.update(audio, this.elapsed, dt);
+    active.update(audio, time, dt);
     (this.modules[0] as NeonFeedbackModule).layered = false;
     let read: T.WebGLRenderTarget;
     if (active.id === "neon")
@@ -189,7 +219,7 @@ export class VisualizerHost {
     if (this.settings.overlay && active.id !== "neon") {
       const neon = this.modules[0] as NeonFeedbackModule;
       neon.layered = true;
-      neon.update(audio, this.elapsed, dt);
+      neon.update(audio, time, dt);
       if (this.settings.postFX) {
         overlay = neon.renderFeedback(this.renderer);
       } else {
@@ -199,24 +229,14 @@ export class VisualizerHost {
       }
     }
     if (this.settings.postFX) {
-      this.post.update(audio, this.elapsed, dt);
+      this.post.update(audio, time, dt);
       this.post.renderToScreen(this.renderer, read, overlay);
     } else {
       this.output.material.uniforms.image.value = read.texture;
       this.output.material.uniforms.raw.value = 1;
       this.output.render(this.renderer, null);
     }
-    this.frames++;
-    this.statsTime += frameDelta;
-    if (this.statsTime > 0.25) {
-      this.stats.fps = Math.round(this.frames / this.statsTime);
-      this.frames = 0;
-      this.statsTime = 0;
-      this.onStats?.();
-    }
-    this.adapt(frameDelta);
-    this.frameId = requestAnimationFrame(this.tick);
-  };
+  }
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.frameId);

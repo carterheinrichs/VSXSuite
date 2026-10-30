@@ -50,28 +50,20 @@ export class AudioEngine {
   private offset = 0;
   sourceName = "No audio";
   fileLoaded = false;
-  beginExport(onEnded: () => void) {
+  beginExport() {
     if (!this.buffer || !this.context || !this.fileLoaded)
       throw new Error("Open an audio file before exporting.");
     const buffer = this.buffer;
     const position = this.position;
     const paused = !this.playing;
     const ready = this.context.suspend();
-    const destination = this.context.createMediaStreamDestination();
-    this.analyser!.connect(destination);
-    this.seek(0);
-    const source = this.source as AudioBufferSourceNode;
-    source.loop = false;
-    source.onended = onEnded;
     return {
+      buffer,
       ready,
-      stream: destination.stream,
       restore: () => {
-        source.onended = null;
-        this.analyser!.disconnect(destination);
-        destination.stream.getTracks().forEach((track) => track.stop());
+        if (this.context?.state === "closed") return;
         this.seek(position);
-        if (paused) void this.context!.suspend();
+        if (!paused) void this.context!.resume();
       },
     };
   }
@@ -246,9 +238,20 @@ export class AudioEngine {
     this.startBuffer(buffer);
     this.sourceName = "Procedural / 120 BPM";
   }
-  update(time: number, dt: number) {
+  update(
+    time: number,
+    dt: number,
+    offline?: {
+      getByteFrequencyData(data: Uint8Array): void;
+      getByteTimeDomainData(data: Uint8Array): void;
+      buffer: AudioBuffer;
+    },
+  ) {
     const f = this.frame;
-    if (this.context?.state === "suspended") {
+    if (offline) {
+      offline.getByteFrequencyData(this.spectrum);
+      offline.getByteTimeDomainData(this.waveform);
+    } else if (this.context?.state === "suspended") {
       this.spectrum.fill(0);
       this.waveform.fill(128);
     } else {
@@ -259,7 +262,8 @@ export class AudioEngine {
     this.history.set(this.spectrum, 0);
     this.texture.needsUpdate = true;
     this.historyTexture.needsUpdate = true;
-    const hz = (this.context?.sampleRate ?? 48000) / 1024;
+    const hz =
+      (offline?.buffer.sampleRate ?? this.context?.sampleRate ?? 48000) / 1024;
     const smoothing = 1 - Math.exp(-dt * 12);
     let energy = 0,
       weighted = 0,
