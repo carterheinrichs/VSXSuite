@@ -58,4 +58,4 @@ Tests check shader/runtime errors, synth activation, scene selection, resizing, 
 
 Simplex shader noise derives from Ashima Arts / Stefan Gustavson (MIT; see `THIRD_PARTY_NOTICES.md`).
 
-Aurora ribbons layers flowing spectral curtains; Prismatic drift flies through twisting prismatic hoops. These two original, audio-reactive scenes draw on the colorful console music visualizers of the Xbox 360 era. Both offer speed, intensity and hue controls, plus spread or twist.
+Aurora ribbons layers flowing spectral curtains; Prismatic drift flies through twisting prismatic hoops; Xenon blades frames a segmented ring of light inside sweeping concave arcs; Vector lattice warps dual perspective neon grids and horizon laser beacons; Solar mandala folds orbiting Lissajous plasma nodes and spectral history waves. These original, audio-reactive scenes draw on the colorful console music visualizers of the Xbox 360 era and offer speed, intensity and hue controls alongside scene-specific spread, twist, warp or symmetry parameters.

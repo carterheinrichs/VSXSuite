@@ -77,6 +77,136 @@ void main(){
  gl_FragColor=vec4(col,1.);
 }`;
 
+const blades =
+  common +
+  `
+uniform float uIntensity,uSpread,uHue;
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
+ float t=uTime;
+ p=rot(.08*sin(t*.15))*p;
+ vec3 col=vec3(.003,.007,.014);
+ float px=1.3/uResolution.y;
+ float energy=(.48+uRms*.85+uBeat*.25)*uIntensity;
+ // Sweeping concave Xenon blades arranged in mirrored depth pairs.
+ for(int i=0;i<8;i++){
+  float k=float(i), side=mod(k,2.)*2.-1., tier=floor(k*.5)*.333;
+  float span=.14+tier*(.22+uSpread*.12)+uBass*.04;
+  float bend=.55+tier*.45+.15*sin(t*.3+k);
+  float waveMod=wave(clamp(p.y*.65+.5,0.,1.))*(.02+uMid*.04);
+  float curve=side*(span+bend*p.y*p.y)+sin(p.y*3.6-t*.45+k*.9)*.035+waveMod;
+  float d=(p.x-curve)*side;
+  float spec=fft(.12+tier*.7);
+  float width=.024+tier*.02+spec*.025;
+  float rim=1.-smoothstep(px,px*2.4,abs(d));
+  float sheen=exp(-max(0.,d)/width)*smoothstep(-.012,px,d);
+  float glow=exp(-abs(d)/(.01+width*.45));
+  float ribs=.65+.35*sin(p.y*28.-t*1.4+k*1.7);
+  vec3 color=palette(tier*.22+uHue+p.y*.08+t*.01);
+  col+=color*(rim*.85+sheen*(.32+ribs*.45)+glow*.18)*(energy+spec*.45*uIntensity);
+ }
+ // Segmented four-quadrant Ring of Light core pulsing with the beat.
+ float r=length(p), a=atan(p.y,p.x);
+ float gap=smoothstep(.09,.18,abs(sin(a*2.+t*.25)));
+ float ringR=.16+uBass*.035+fft(abs(a)*(1./PI))*.025;
+ float ringD=abs(r-ringR);
+ float ring=(1.-smoothstep(px,px*2.8,ringD)+exp(-ringD*55.)*.35)*gap;
+ col+=palette(uHue+.12+r*.4)*ring*energy*1.15;
+ col+=palette(uHue)*.022/(.09+r);
+ col*=1.-smoothstep(.42,1.45,r)*.78;
+ gl_FragColor=vec4(col,1.);
+}`;
+
+const lattice =
+  common +
+  `
+uniform float uIntensity,uWarp,uHue;
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
+ float t=uTime;
+ p=rot(.1*sin(t*.18)+wave(.5)*.04)*p;
+ vec3 col=vec3(.003,.005,.016);
+ float px=1.3/uResolution.y;
+ float energy=(.5+uRms*.85+uBeat*.3)*uIntensity;
+ // Gravity-well ripple warps space from the center on bass hits.
+ float r=length(p);
+ float ripple=sin(r*14.-t*2.6)*exp(-r*2.4)*(.03+uBass*.08)*uWarp;
+ vec2 wp=p+normalize(p+1e-4)*ripple;
+ float ay=abs(wp.y)+.035;
+ float z=clamp(.28/ay,0.,18.);
+ float fade=smoothstep(.035,.22,ay)*exp(-z*.14);
+ // Dual perspective vector planes with audio-reactive longitudinal waves.
+ vec2 g=vec2(wp.x*z*1.35,z-t*2.4);
+ g.x+=sin(g.y*.45+t*.6)*(.18+uMid*.25)*uWarp;
+ g.y+=wave(clamp(wp.x*.4+.5,0.,1.))*uWarp*.35;
+ vec2 cell=abs(fract(g)-.5);
+ vec2 gw=clamp(fwidth(g),vec2(.02),vec2(.35));
+ vec2 lines=1.-smoothstep(gw*.55,gw*1.85,cell);
+ float grid=max(lines.x,lines.y);
+ float crossGlow=exp(-(cell.x+cell.y)*9.)*1.4;
+ float spec=fft(clamp(abs(wp.x)*.75,0.,1.));
+ vec3 gridCol=palette(z*.045+abs(wp.x)*.25+t*.02+uHue);
+ col+=gridCol*(grid*.75+crossGlow*.35)*fade*(energy+spec*.5*uIntensity);
+ // Horizon laser beacons and diamond nodes pulsing to frequency bands.
+ for(int i=0;i<7;i++){
+  float k=float(i)-3.;
+  float bx=k*.24+sin(t*.35+k*1.3)*.035;
+  float band=fft(.08+abs(k)*.26);
+  float h=.05+band*.22+uBass*.05;
+  float dx=abs(wp.x-bx), dy=abs(wp.y);
+  float diamond=dx*1.4+dy-h*.45;
+  float node=1.-smoothstep(px,px*2.5,abs(diamond));
+  float pillar=exp(-dx*75.)*smoothstep(h*1.6,0.,dy)*(.25+band*.85);
+  float halo=exp(-length(vec2(dx,max(0.,dy-h*.3)))*26.)*.22;
+  vec3 bCol=palette(k*.09+uHue+.22+t*.015);
+  col+=bCol*(node*.8+pillar+halo)*energy;
+ }
+ // Glowing horizon seam and soft vignette.
+ col+=palette(uHue+.45+wp.x*.2)*exp(-abs(wp.y)*42.)*(.18+uBass*.22)*energy;
+ col*=1.-smoothstep(.45,1.45,r)*.75;
+ gl_FragColor=vec4(col,1.);
+}`;
+
+const mandala =
+  common +
+  `
+uniform float uIntensity,uSymmetry,uHue;
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
+ float t=uTime;
+ float r=length(p);
+ float a=atan(p.y,p.x)+t*.11*sin(t*.09);
+ float sector=PI/uSymmetry;
+ float fa=abs(mod(a+sector,2.*sector)-sector);
+ vec2 q=vec2(cos(fa),sin(fa))*r;
+ vec3 col=vec3(.004,.005,.016);
+ float px=1.3/uResolution.y;
+ float energy=(.48+uRms*.9+uBeat*.3)*uIntensity;
+ // Kaleidoscopic Lissajous petals and orbiting plasma nodes in folded polar space.
+ for(int i=0;i<6;i++){
+  float k=float(i), phase=k*.52+t*(.28+k*.04);
+  float spec=fft(k*.16+.05);
+  float rad=.11+k*.065+spec*.055+uBass*.04;
+  float petal=rad*(.78+.28*cos(fa*uSymmetry*(1.+mod(k,2.))+phase))
+    +wave(clamp(fa/sector,0.,1.))*(.018+uMid*.035);
+  float d=abs(r-petal);
+  float filament=1.-smoothstep(px,px*2.4,d);
+  float halo=exp(-d/(.006+k*.003));
+  vec2 orbPos=vec2(rad*cos(fa*.6+.18*sin(phase)),rad*sin(phase)*.42);
+  float orbD=length(q-orbPos);
+  float orb=(.0018+spec*.0025)/(.0012+orbD*orbD*18.);
+  vec3 color=palette(k*.14+fa*.25+r*.35-t*.02+uHue);
+  col+=color*(filament*.75+halo*.24+orb*.55)*(energy+spec*.4*uIntensity);
+ }
+ // Spectral history interference waves radiating from the core.
+ float hist=texture2D(uAudioHistoryTexture,vec2(clamp(fa/sector,0.,1.),clamp(r*1.2,0.,1.))).r;
+ float corona=pow(max(0.,cos(r*38.-t*1.6+hist*4.)),12.)*(.04+hist*.18)*exp(-r*1.8);
+ col+=palette(uHue+.32+r*.5)*corona*energy;
+ col+=palette(uHue+.15)*.024/(.07+r);
+ col*=1.-smoothstep(.45,1.45,r)*.78;
+ gl_FragColor=vec4(col,1.);
+}`;
+
 abstract class ConsoleLightModule extends ShaderModule {
   abstract params: {
     speed: number;
@@ -84,6 +214,8 @@ abstract class ConsoleLightModule extends ShaderModule {
     hue: number;
     spread?: number;
     twist?: number;
+    warp?: number;
+    symmetry?: number;
   };
   protected abstract readonly fragment: string;
   private time = 0;
@@ -92,6 +224,8 @@ abstract class ConsoleLightModule extends ShaderModule {
     uIntensity: { value: 1 },
     uSpread: { value: 1 },
     uTwist: { value: 1 },
+    uWarp: { value: 1 },
+    uSymmetry: { value: 8 },
     uHue: { value: 0 },
     uHoops: { value: this.hoops },
   };
@@ -111,7 +245,10 @@ abstract class ConsoleLightModule extends ShaderModule {
     this.extra.uIntensity.value = this.params.intensity;
     this.extra.uSpread.value = this.params.spread ?? 1;
     this.extra.uTwist.value = twist;
+    this.extra.uWarp.value = this.params.warp ?? 1;
+    this.extra.uSymmetry.value = this.params.symmetry ?? 8;
     this.extra.uHue.value = this.params.hue;
+    if (this.id === "mandala") audio.uAudioHistoryTexture.needsUpdate = true;
     if (this.id === "prismatic") {
       for (let i = 0; i < 28; i++) {
         const z = (((i / 28 - t * 0.055) % 1) + 1) % 1;
@@ -137,4 +274,25 @@ export class PrismaticDriftModule extends ConsoleLightModule {
   readonly name = "Prismatic drift";
   protected readonly fragment = drift;
   params = { speed: 0.9, intensity: 1.2, twist: 1, hue: 0.55 };
+}
+
+export class XenonBladesModule extends ConsoleLightModule {
+  readonly id = "blades";
+  readonly name = "Xenon blades";
+  protected readonly fragment = blades;
+  params = { speed: 0.85, intensity: 1.2, spread: 1, hue: 0.28 };
+}
+
+export class VectorLatticeModule extends ConsoleLightModule {
+  readonly id = "lattice";
+  readonly name = "Vector lattice";
+  protected readonly fragment = lattice;
+  params = { speed: 0.95, intensity: 1.2, warp: 1, hue: 0.72 };
+}
+
+export class SolarMandalaModule extends ConsoleLightModule {
+  readonly id = "mandala";
+  readonly name = "Solar mandala";
+  protected readonly fragment = mandala;
+  params = { speed: 0.85, intensity: 1.2, symmetry: 8, hue: 0.88 };
 }

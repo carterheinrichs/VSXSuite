@@ -6,6 +6,9 @@ import { NeonFeedbackModule } from "../modules/NeonFeedbackModule";
 import {
   AuroraRibbonsModule,
   PrismaticDriftModule,
+  XenonBladesModule,
+  VectorLatticeModule,
+  SolarMandalaModule,
 } from "../modules/ConsoleLightModules";
 import { RealisticFerrofluidModule } from "../modules/RealisticFerrofluidModule";
 import { MasterPostFXModule } from "../modules/MasterPostFXModule";
@@ -15,6 +18,9 @@ export class VisualizerHost {
     new NeonFeedbackModule(),
     new AuroraRibbonsModule(),
     new PrismaticDriftModule(),
+    new XenonBladesModule(),
+    new VectorLatticeModule(),
+    new SolarMandalaModule(),
     new RealisticFerrofluidModule(),
   ];
   readonly post = new MasterPostFXModule();

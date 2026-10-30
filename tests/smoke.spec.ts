@@ -38,11 +38,17 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Neon feedback",
     "Aurora ribbons",
     "Prismatic drift",
+    "Xenon blades",
+    "Vector lattice",
+    "Solar mandala",
     "Magnetic matter",
   ]);
   for (const [label, file] of [
     ["Aurora ribbons", "aurora"],
     ["Prismatic drift", "prismatic"],
+    ["Xenon blades", "blades"],
+    ["Vector lattice", "lattice"],
+    ["Solar mandala", "mandala"],
   ]) {
     await page.locator("#rack select").selectOption({ label });
     await expect(page.locator("#rack select")).toHaveValue(label);
