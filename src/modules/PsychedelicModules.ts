@@ -56,10 +56,10 @@ float surface(vec2 p){
 }
 void main(){
  vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.4;
- float e=.008;
  float h=surface(p);
- vec3 n=normalize(vec3((surface(p+vec2(e,0.))-surface(p-vec2(e,0.)))/(2.*e),
-  (surface(p+vec2(0.,e))-surface(p-vec2(0.,e)))/(2.*e),1.));
+ vec2 dp=vec2(dFdx(p.x),dFdy(p.y));
+ vec2 grad=vec2(dFdx(h),dFdy(h))/max(abs(dp),vec2(1e-5));
+ vec3 n=normalize(vec3(grad,1.));
  vec3 reflected=reflect(vec3(0.,0.,-1.),n);
  float bands=.5+.5*sin(reflected.x*8.+reflected.y*5.+h*9.-uTime*.4);
  float strip=pow(bands,18.);

@@ -50,14 +50,16 @@ vec2 point(float s){return vec2(wave(s),wave(fract(s+.19)))*.32*uGain;}
 void main(){
  vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
  vec3 col=vec3(.003,.006,.008); float d=10.;
- // A delayed copy of the mono waveform provides a phase portrait for any source.
- vec2 a=point(0.);
- for(int i=1;i<192;i++){
-  vec2 b=point(float(i)/191.); vec2 ab=b-a;
-  float h=clamp(dot(p-a,ab)/max(dot(ab,ab),1e-8),0.,1.);
-  d=min(d,length(p-a-ab*h)); a=b;
+ float bound=.32*uGain+.055;
+ if(abs(p.x)<bound && abs(p.y)<bound){
+  vec2 a=point(0.);
+  for(int i=1;i<128;i++){
+   vec2 b=point(float(i)*(1./127.)); vec2 ab=b-a;
+   float h=clamp(dot(p-a,ab)/max(dot(ab,ab),1e-8),0.,1.);
+   d=min(d,length(p-a-ab*h)); a=b;
+  }
+  col+=ink(.35)*trace(d);
  }
- col+=ink(.35)*trace(d);
  col+=ink(.35)*.045*exp(-min(abs(p.x),abs(p.y))*350.);
  gl_FragColor=vec4(col,1.);
 }`;
@@ -70,7 +72,9 @@ void main(){
  float x=p.x*p.x*(.15+.85*p.x);
  float power=clamp(texture2D(uAudioHistoryTexture,vec2(x,1.-p.y)).r*uGain,0.,1.);
  vec3 cold=vec3(.005,.012,.05);
- vec3 color=mix(cold,palette(.65-power*.65+uHue)*power*1.8,smoothstep(0.,.18,power));
+ float coldCut=smoothstep(0.,.18,power);
+ float boost=pow(power,1.15);
+ vec3 color=mix(cold,palette(.65-power*.65+uHue)*boost*1.8,coldCut);
  color*=uIntensity;
  float mask=step(.06,vUv.x)*step(vUv.x,.94)*step(.06,vUv.y)*step(vUv.y,.94);
  gl_FragColor=vec4(mix(vec3(.002,.004,.009),color,mask),1.);
@@ -79,21 +83,23 @@ void main(){
 const starfield =
   classic +
   `
-float hash(float n){return fract(sin(n*127.1)*43758.5453);}
+uniform vec4 uStars[64];
 void main(){
  vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
  vec3 col=vec3(.002,.003,.009);
- for(int i=0;i<96;i++){
-  float k=float(i); float z=fract(hash(k+3.)-uTime*.22);
+ for(int i=0;i<64;i++){
+  vec4 s=uStars[i]; float z=fract(s.z-uTime*.22);
   float depth=.12+z*2.;
-  vec2 seed=vec2(hash(k+17.),hash(k+139.))*2.-1.;
-  vec2 pos=seed/depth;
-  vec2 tail=seed/(depth+.05+uBass*.09*uGain);
-  vec2 ab=tail-pos; float h=clamp(dot(p-pos,ab)/max(dot(ab,ab),1e-8),0.,1.);
-  float d=length(p-pos-ab*h);
-  float fade=smoothstep(0.,.12,z)*(1.-smoothstep(.8,1.,z));
-  col+=mix(vec3(.7,.82,1.),palette(k*.017+uHue),.35)*trace(d)*fade
-    *(.35+fft(hash(k+55.))*uGain)*uIntensity;
+  vec2 pos=s.xy/depth;
+  vec2 tail=s.xy/(depth+.05+uBass*.09*uGain);
+  vec2 p0=min(pos,tail)-.03; vec2 p1=max(pos,tail)+.03;
+  if(p.x>=p0.x && p.x<=p1.x && p.y>=p0.y && p.y<=p1.y){
+   vec2 ab=tail-pos; float h=clamp(dot(p-pos,ab)/max(dot(ab,ab),1e-8),0.,1.);
+   float d=length(p-pos-ab*h);
+   float fade=smoothstep(0.,.12,z)*(1.-smoothstep(.8,1.,z));
+   col+=mix(vec3(.7,.82,1.),palette(float(i)*.017+uHue),.35)*trace(d)*fade
+     *(.35+fft(s.w)*uGain)*uIntensity;
+  }
  }
  gl_FragColor=vec4(col,1.);
 }`;
@@ -106,10 +112,14 @@ abstract class ClassicModule extends ShaderModule {
     uGain: { value: 1 },
     uHue: { value: 0 },
   };
+  protected getExtraUniforms(): Record<string, T.IUniform> {
+    return {};
+  }
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
     this.pass = new FullscreenPass(this.fragment, {
       ...this.uniforms,
       ...this.extra,
+      ...this.getExtraUniforms(),
     });
     this.resize(width, height);
   }
@@ -145,4 +155,20 @@ export class StarfieldModule extends ClassicModule {
   readonly id = "starfield";
   readonly name = "Classic starfield";
   protected readonly fragment = starfield;
+  private readonly stars = Array.from({ length: 64 }, (_, i) => {
+    const k = i;
+    const hash = (n: number) => {
+      const s = Math.sin(n * 127.1) * 43758.5453;
+      return s - Math.floor(s);
+    };
+    return new T.Vector4(
+      hash(k + 17) * 2 - 1,
+      hash(k + 139) * 2 - 1,
+      hash(k + 3),
+      hash(k + 55),
+    );
+  });
+  protected override getExtraUniforms() {
+    return { uStars: { value: this.stars } };
+  }
 }

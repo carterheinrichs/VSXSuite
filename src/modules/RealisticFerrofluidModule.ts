@@ -24,7 +24,7 @@ export class RealisticFerrofluidModule implements IVisualModule {
     clearcoat: 1,
     clearcoatRoughness: 0.08,
   });
-  private readonly blob = new T.Mesh(createIndexedSphere(1, 6), this.material);
+  private readonly blob = new T.Mesh(createIndexedSphere(1, 5), this.material);
   private readonly cyan = new T.PointLight(0x4cffff, 16, 15, 2);
   private readonly pink = new T.PointLight(0xff368f, 20, 15, 2);
   private reflector!: Reflector;
