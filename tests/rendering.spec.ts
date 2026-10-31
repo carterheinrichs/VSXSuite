@@ -1,5 +1,112 @@
 import { test, expect } from "@playwright/test";
 
+test("psychedelic scenes render distinct audio-reactive images in landscape and portrait", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(msg.text());
+  });
+  await page.goto("/");
+  const results = await page.evaluate(async () => {
+    // @ts-expect-error Browser imports use Vite's source module resolution.
+    const T = await import("/node_modules/three/build/three.module.js");
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const modules = await import("/src/modules/PsychedelicModules.ts");
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const { AudioEngine } = await import("/src/audio/AudioEngine.ts");
+    const renderer = new T.WebGLRenderer();
+    const audio = new AudioEngine();
+    const frame = audio.update(0, 0);
+    const results = [];
+    for (const Module of [
+      modules.PsychedelicBloomModule,
+      modules.AcidChromeModule,
+      modules.PulseReactorModule,
+      modules.PrismaticTunnelModule,
+    ]) {
+      const scene = new Module();
+      scene.init(renderer, 128, 80);
+      for (const [w, h] of [
+        [128, 80],
+        [80, 128],
+      ]) {
+        scene.resize(w, h);
+        const target = new T.WebGLRenderTarget(w, h);
+        const read = new T.WebGLRenderTarget(w, h);
+        const silent = new Uint8Array(w * h * 4),
+          active = new Uint8Array(w * h * 4);
+        frame.subBass =
+          frame.bass =
+          frame.mid =
+          frame.treble =
+          frame.rms =
+          frame.beat =
+            0;
+        frame.kick = false;
+        scene.update(frame, 0, 0);
+        scene.render(renderer, target, read);
+        renderer.readRenderTargetPixels(target, 0, 0, w, h, silent);
+        frame.subBass =
+          frame.bass =
+          frame.mid =
+          frame.treble =
+          frame.rms =
+          frame.beat =
+            0.8;
+        frame.kick = true;
+        scene.update(frame, 0, 0);
+        scene.render(renderer, target, read);
+        renderer.readRenderTargetPixels(target, 0, 0, w, h, active);
+        let lit = 0,
+          changed = 0,
+          min = 255,
+          max = 0,
+          opaque = true;
+        for (let i = 0; i < active.length; i += 4) {
+          const brightness = (active[i] + active[i + 1] + active[i + 2]) / 3;
+          if (brightness > 10) lit++;
+          min = Math.min(min, brightness);
+          max = Math.max(max, brightness);
+          if (
+            Math.abs(active[i] - silent[i]) +
+              Math.abs(active[i + 1] - silent[i + 1]) +
+              Math.abs(active[i + 2] - silent[i + 2]) >
+            6
+          )
+            changed++;
+          opaque &&= active[i + 3] === 255;
+        }
+        results.push({
+          id: scene.id,
+          lit: lit / (w * h),
+          changed: changed / (w * h),
+          contrast: max - min,
+          opaque,
+          signature: Array.from(active.filter((_, i) => i % 257 === 0)).join(
+            ",",
+          ),
+        });
+        target.dispose();
+        read.dispose();
+      }
+      scene.dispose();
+    }
+    audio.dispose();
+    renderer.dispose();
+    return results;
+  });
+  for (const result of results) {
+    expect(result.lit, result.id).toBeGreaterThan(0.15);
+    expect(result.changed, result.id).toBeGreaterThan(0.1);
+    expect(result.contrast, result.id).toBeGreaterThan(30);
+    expect(result.opaque, result.id).toBe(true);
+  }
+  expect(new Set(results.map((r) => r.signature)).size).toBe(8);
+  expect(errors).toEqual([]);
+});
+
 test("fused HDR overlay preserves separate-pass output and saves one draw", async ({
   page,
 }) => {

@@ -4,6 +4,12 @@ import type { AudioFrameData, IVisualModule } from "./types";
 import { target, FullscreenPass } from "../shaders/shared";
 import { NeonFeedbackModule } from "../modules/NeonFeedbackModule";
 import {
+  PsychedelicBloomModule,
+  AcidChromeModule,
+  PulseReactorModule,
+  PrismaticTunnelModule,
+} from "../modules/PsychedelicModules";
+import {
   AuroraRibbonsModule,
   PrismaticDriftModule,
   XenonBladesModule,
@@ -38,6 +44,10 @@ export class VisualizerHost {
     new TeslaPlasmaModule(),
     new LaserCathedralModule(),
     new ApexTrianglesModule(),
+    new PsychedelicBloomModule(),
+    new AcidChromeModule(),
+    new PulseReactorModule(),
+    new PrismaticTunnelModule(),
     new RealisticFerrofluidModule(),
     new ClassicSpectrumModule(),
     new OscilloscopeModule(),
