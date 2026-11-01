@@ -1202,3 +1202,40 @@ img.scene-art {
     transition: none;
   }
 }
+/* Match the outer panel chevrons on every rack section, including themes. */
+#rack-controls .tp-fldv_m {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  right: 6px;
+  background: #191c28;
+  border: 1px solid #ffffff15;
+  border-radius: 6px;
+  color: #b7becf;
+  opacity: 1;
+  transform: none;
+}
+#rack-controls .tp-fldv_m svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 200ms ease;
+}
+#rack-controls .tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m svg {
+  transform: rotate(180deg);
+}
+#rack-controls .tp-fldv_b:hover > .tp-fldv_m {
+  background: #292b3b;
+  color: #ede6ff;
+}
+@media (prefers-reduced-motion: reduce) {
+  #rack-controls .tp-fldv_m svg {
+    transition: none;
+  }
+}

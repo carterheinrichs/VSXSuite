@@ -219,6 +219,23 @@ export class ViszSuiteUI {
       audio.stop();
       this.source();
     });
+    document
+      .querySelectorAll<HTMLElement>("#rack-controls .tp-fldv_m")
+      .forEach((marker) => {
+        marker.setAttribute("aria-hidden", "true");
+        const svg = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg",
+        );
+        svg.setAttribute("viewBox", "0 0 16 16");
+        const path = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "path",
+        );
+        path.setAttribute("d", "m4 6 4 4 4-4");
+        svg.append(path);
+        marker.replaceChildren(svg);
+      });
     const fileInput = document.querySelector<HTMLInputElement>("#file-input")!;
     const signal = this.abort.signal;
     document.querySelector("#export")!.addEventListener(
