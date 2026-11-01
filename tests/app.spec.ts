@@ -5,6 +5,7 @@ for (const revision of [1, 2]) {
   }) => {
     await page.goto(`/?ui=${revision}`);
     await expect(page.locator("[data-scene]")).toHaveCount(22);
+    await expect(page.locator("#scene-count")).toHaveText("22");
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
@@ -40,6 +41,7 @@ for (const revision of [1, 2]) {
     await expect(page.getByRole("searchbox")).toBeVisible();
     await page.getByRole("searchbox").fill("aurora");
     await expect(page.locator("[data-scene]")).toHaveCount(1);
+    await expect(page.locator("#scene-count")).toHaveText("1");
     await page.locator('[data-scene="aurora"]').click();
     await expect(
       page.locator(".scene-card[aria-pressed=true] strong"),
@@ -52,9 +54,11 @@ for (const revision of [1, 2]) {
     await expect(page.locator("#scene-grid")).toHaveText(
       "No visualizers match your search.",
     );
+    await expect(page.locator("#scene-count")).toHaveText("0");
     await page.getByRole("searchbox").fill("");
     await page.getByRole("button", { name: "Classic", exact: true }).click();
     await expect(page.locator("[data-scene]")).toHaveCount(5);
+    await expect(page.locator("#scene-count")).toHaveText("5");
     await page.locator("#export-open").click();
     await expect(
       page.getByRole("combobox", { name: "Export resolution" }),

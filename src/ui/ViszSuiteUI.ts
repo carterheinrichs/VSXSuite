@@ -59,6 +59,7 @@ export class ViszSuiteUI {
       { signal: this.abort.signal },
     );
     const grid = document.querySelector<HTMLElement>("#scene-grid")!;
+    const count = document.querySelector<HTMLElement>("#scene-count")!;
     const search = document.querySelector<HTMLInputElement>("#scene-search")!;
     let category = "All";
     const categoryFor = (index: number) =>
@@ -107,6 +108,7 @@ export class ViszSuiteUI {
         );
         grid.append(button);
       });
+      count.textContent = String(grid.childElementCount);
       if (!grid.childElementCount)
         grid.textContent = "No visualizers match your search.";
     };
