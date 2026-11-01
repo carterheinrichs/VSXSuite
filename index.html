@@ -33,7 +33,9 @@
           aria-controls="library-content"
           aria-label="Minimize visualizers"
         >
-          ⌄
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="m4 6 4 4 4-4" />
+          </svg>
         </button>
       </div>
       <div id="library-content">
@@ -53,7 +55,20 @@
       </div>
     </section>
     <aside id="rack" aria-label="Visual settings">
-      <div class="panel-heading"><h2>Control rack</h2></div>
+      <div class="panel-heading">
+        <h2>Control rack</h2>
+        <button
+          id="rack-toggle"
+          class="panel-toggle"
+          aria-expanded="true"
+          aria-controls="rack-controls"
+          aria-label="Minimize control rack"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="m4 10 4-4 4 4" />
+          </svg>
+        </button>
+      </div>
       <div id="rack-controls"></div>
     </aside>
     <footer>

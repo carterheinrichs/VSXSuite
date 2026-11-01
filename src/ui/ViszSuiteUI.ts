@@ -37,7 +37,24 @@ export class ViszSuiteUI {
           "aria-label",
           collapsed ? "Expand visualizers" : "Minimize visualizers",
         );
-        libraryToggle.textContent = collapsed ? "⌃" : "⌄";
+      },
+      { signal: this.abort.signal },
+    );
+    const rackToggle =
+      document.querySelector<HTMLButtonElement>("#rack-toggle")!;
+    rackToggle.addEventListener(
+      "click",
+      () => {
+        const collapsed = document
+          .querySelector("#rack")!
+          .classList.toggle("is-collapsed");
+        document.querySelector<HTMLElement>("#rack-controls")!.hidden =
+          collapsed;
+        rackToggle.setAttribute("aria-expanded", String(!collapsed));
+        rackToggle.setAttribute(
+          "aria-label",
+          collapsed ? "Expand control rack" : "Minimize control rack",
+        );
       },
       { signal: this.abort.signal },
     );
