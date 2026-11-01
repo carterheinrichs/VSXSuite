@@ -4,7 +4,7 @@ for (const revision of [1, 2]) {
     page,
   }) => {
     await page.goto(`/?ui=${revision}`);
-    await expect(page.locator("[data-scene]")).toHaveCount(21);
+    await expect(page.locator("[data-scene]")).toHaveCount(22);
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
@@ -65,7 +65,7 @@ for (const revision of [1, 2]) {
     await expect(
       page.getByRole("heading", { name: "See what you hear." }),
     ).toBeVisible();
-    await page.getByRole("link", { name: "Back to studio" }).click();
+    await page.getByRole("link", { name: "Back to VSXSuite" }).click();
     await page.locator("#focus").click();
     await expect(page.locator("#library")).toBeHidden();
     await expect(page.locator("#rack")).toBeHidden();

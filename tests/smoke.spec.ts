@@ -16,14 +16,14 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
   await expect(page.locator("#status")).toHaveText("PAUSED");
   const seek = page.getByRole("slider", { name: "Song position" });
   await seek.evaluate((element: HTMLInputElement) => {
-    element.value = "4";
+    element.value = "4.25";
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await expect(page.locator("#elapsed")).toHaveText("0:04");
   // A suspended audio clock must stay put instead of restarting on resume.
   await page.waitForTimeout(350);
-  await expect(seek).toHaveValue("4");
+  await expect(seek).toHaveValue("4.25");
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Pause", exact: true }),
@@ -51,6 +51,7 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Pulse Reactor",
     "Prismatic Tunnel",
     "Magnetic matter",
+    "Evolving Atmosphere",
     "Classic equalizer",
     "Classic oscilloscope",
     "Lissajous scope",
@@ -58,6 +59,7 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Classic starfield",
   ]);
   for (const [label, file] of [
+    ["Evolving Atmosphere", "evolving-atmosphere"],
     ["Aurora ribbons", "aurora"],
     ["Prismatic drift", "prismatic"],
     ["Xenon blades", "blades"],

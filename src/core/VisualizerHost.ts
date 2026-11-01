@@ -1,3 +1,4 @@
+import { EvolvingAtmosphereModule } from "../modules/EvolvingAtmosphereModule";
 import * as T from "three";
 import { AudioEngine } from "../audio/AudioEngine";
 import type { AudioFrameData, IVisualModule } from "./types";
@@ -49,6 +50,7 @@ export class VisualizerHost {
     new PulseReactorModule(),
     new PrismaticTunnelModule(),
     new RealisticFerrofluidModule(),
+    new EvolvingAtmosphereModule(),
     new ClassicSpectrumModule(),
     new OscilloscopeModule(),
     new LissajousModule(),

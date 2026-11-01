@@ -21,7 +21,9 @@ try {
     return host.modules.map((module) => module.id);
   });
   await mkdir("public/thumbnails", { recursive: true });
-  for (const id of ids) {
+  for (const id of ids.filter(
+    (id) => !process.env.THUMBNAIL_SCENE || id === process.env.THUMBNAIL_SCENE,
+  )) {
     const data = await page.evaluate((id) => {
       const { host, audio, canvas } = window.thumbnailScene;
       host.select(id);

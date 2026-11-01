@@ -220,3 +220,75 @@ test("fused HDR overlay preserves separate-pass output and saves one draw", asyn
   }
   expect(errors).toEqual([]);
 });
+
+test("Evolving Atmosphere reacts to audio, supports ambient silence and repeats after rewind", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(msg.text());
+  });
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    // @ts-expect-error Vite browser module.
+    const T = await import("/node_modules/three/build/three.module.js");
+    // @ts-expect-error Vite browser module.
+    const { EvolvingAtmosphereModule } =
+      await import("/src/modules/EvolvingAtmosphereModule.ts");
+    // @ts-expect-error Vite browser module.
+    const { AudioEngine } = await import("/src/audio/AudioEngine.ts");
+    const renderer = new T.WebGLRenderer();
+    const scene = new EvolvingAtmosphereModule();
+    const audio = new AudioEngine();
+    scene.init(renderer, 96, 64);
+    const target = new T.WebGLRenderTarget(96, 64);
+    const read = new T.WebGLRenderTarget(96, 64);
+    const capture = () => {
+      scene.render(renderer, target, read);
+      const pixels = new Uint8Array(96 * 64 * 4);
+      renderer.readRenderTargetPixels(target, 0, 0, 96, 64, pixels);
+      return pixels;
+    };
+    const brightness = (pixels: Uint8Array) =>
+      pixels.reduce((sum, value, i) => sum + (i % 4 === 3 ? 0 : value), 0);
+    const frame = audio.frame;
+    scene.update(frame, 0, 1 / 30);
+    const silent = brightness(capture());
+    scene.params.ambient = true;
+    scene.update(frame, 0, 1 / 30);
+    const ambient = brightness(capture());
+    scene.params.ambient = false;
+    const run = () => {
+      for (let i = 0; i < 40; i++) {
+        Object.assign(frame, {
+          bass: 0.8,
+          mid: 0.5,
+          treble: 0.6,
+          rms: 0.5,
+          beat: i % 15 === 0 ? 1 : 0,
+          kick: i % 15 === 0,
+        });
+        scene.update(frame, i / 30, 1 / 30);
+      }
+      return capture();
+    };
+    const first = run(),
+      second = run();
+    const active = brightness(first);
+    const repeatable = first.every((value, i) => value === second[i]);
+    scene.resize(64, 96);
+    target.setSize(64, 96);
+    read.setSize(64, 96);
+    scene.render(renderer, target, read);
+    scene.dispose();
+    target.dispose();
+    read.dispose();
+    audio.dispose();
+    renderer.dispose();
+    return { silent, ambient, active, repeatable };
+  });
+  expect(result.active).toBeGreaterThan(result.silent * 3);
+  expect(result.ambient).toBeGreaterThan(result.silent * 3);
+  expect(result.repeatable).toBe(true);
+  expect(errors).toEqual([]);
+});
