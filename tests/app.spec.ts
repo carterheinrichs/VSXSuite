@@ -6,6 +6,20 @@ for (const revision of [1, 2]) {
     await page.goto(`/?ui=${revision}`);
     await expect(page.locator("[data-scene]")).toHaveCount(21);
     await expect(page.locator(".scene-caption")).toHaveCount(0);
+    const rack = page.locator("#rack");
+    const rackHeight = (await rack.boundingBox())!.height;
+    await page.getByRole("button", { name: "Minimize control rack" }).click();
+    await expect(page.locator("#rack-controls")).toHaveJSProperty(
+      "inert",
+      true,
+    );
+    await expect
+      .poll(async () => (await rack.boundingBox())!.height)
+      .toBeLessThan(80);
+    await page.getByRole("button", { name: "Expand control rack" }).click();
+    await expect
+      .poll(async () => (await rack.boundingBox())!.height)
+      .toBeGreaterThan(rackHeight - 2);
     const expanded = await page.locator("#library").boundingBox();
     await page.getByRole("button", { name: "Minimize visualizers" }).click();
     await expect(page.locator("#library-content")).toBeHidden();

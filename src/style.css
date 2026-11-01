@@ -1165,3 +1165,40 @@ body[data-revision="2"] #rack,
 #rack-controls[hidden] {
   display: none;
 }
+#rack-motion {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 200ms ease,
+    visibility 0s;
+}
+#rack-controls {
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+}
+#rack-controls > .tp-rotv {
+  margin-top: 16px;
+}
+#rack.is-collapsed #rack-motion {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 200ms ease,
+    visibility 0s 200ms;
+}
+.panel-toggle svg {
+  transition: transform 200ms ease;
+}
+img.scene-art {
+  width: 100%;
+  object-fit: cover;
+  background: #080b16;
+}
+@media (prefers-reduced-motion: reduce) {
+  #rack-motion,
+  #rack.is-collapsed #rack-motion,
+  .panel-toggle svg {
+    transition: none;
+  }
+}

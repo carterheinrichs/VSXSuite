@@ -48,7 +48,7 @@ export class ViszSuiteUI {
         const collapsed = document
           .querySelector("#rack")!
           .classList.toggle("is-collapsed");
-        document.querySelector<HTMLElement>("#rack-controls")!.hidden =
+        document.querySelector<HTMLElement>("#rack-controls")!.inert =
           collapsed;
         rackToggle.setAttribute("aria-expanded", String(!collapsed));
         rackToggle.setAttribute(
@@ -78,13 +78,17 @@ export class ViszSuiteUI {
         const button = document.createElement("button");
         button.className = "scene-card";
         button.dataset.scene = module.id;
-        button.style.setProperty("--hue", String((index * 39 + 265) % 360));
         button.setAttribute(
           "aria-pressed",
           String(host.settings.scene === module.id),
         );
-        const art = document.createElement("span");
-        art.className = "scene-art art-" + (index % 4);
+        const art = document.createElement("img");
+        art.className = "scene-art";
+        art.src = `/thumbnails/${module.id}.webp`;
+        art.alt = "";
+        art.loading = "lazy";
+        art.width = 320;
+        art.height = 180;
         const name = document.createElement("strong");
         name.textContent = module.name;
         const tag = document.createElement("small");
