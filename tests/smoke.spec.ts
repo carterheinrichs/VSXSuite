@@ -80,16 +80,22 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
   ]) {
     await page.getByRole("searchbox").fill(label);
     await page.locator(".scene-card").click();
-    await expect(page.locator("#scene-title")).toHaveText(label);
+    await expect(
+      page.locator(".scene-card[aria-pressed=true] strong"),
+    ).toHaveText(label);
     await page.screenshot({ path: "test-results/" + file + ".png" });
   }
   await page.getByRole("searchbox").fill("Magnetic matter");
   await page.locator(".scene-card").click();
-  await expect(page.locator("#scene-title")).toHaveText("Magnetic matter");
+  await expect(
+    page.locator(".scene-card[aria-pressed=true] strong"),
+  ).toHaveText("Magnetic matter");
   await page.screenshot({ path: "test-results/ferrofluid.png" });
   await page.getByRole("searchbox").fill("Neon feedback");
   await page.locator(".scene-card").click();
-  await expect(page.locator("#scene-title")).toHaveText("Neon feedback");
+  await expect(
+    page.locator(".scene-card[aria-pressed=true] strong"),
+  ).toHaveText("Neon feedback");
   await page.screenshot({ path: "test-results/neon.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("#stage")).toHaveJSProperty("clientWidth", 390);

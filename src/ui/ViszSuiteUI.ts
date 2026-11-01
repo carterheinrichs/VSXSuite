@@ -19,11 +19,28 @@ export class ViszSuiteUI {
     private readonly audio: AudioEngine,
   ) {
     this.pane = new Pane({
-      container: document.querySelector("#rack")!,
-      title: "CONTROL / RACK",
+      container: document.querySelector("#rack-controls")!,
     });
     const visual = this.pane.addFolder({ title: "01  VISUAL ENGINE" });
     const sceneFolders = new Map<string, ReturnType<Pane["addFolder"]>>();
+    const library = document.querySelector<HTMLElement>("#library")!;
+    const libraryToggle =
+      document.querySelector<HTMLButtonElement>("#library-toggle")!;
+    libraryToggle.addEventListener(
+      "click",
+      () => {
+        const collapsed = library.classList.toggle("is-collapsed");
+        document.querySelector<HTMLElement>("#library-content")!.inert =
+          collapsed;
+        libraryToggle.setAttribute("aria-expanded", String(!collapsed));
+        libraryToggle.setAttribute(
+          "aria-label",
+          collapsed ? "Expand visualizers" : "Minimize visualizers",
+        );
+        libraryToggle.textContent = collapsed ? "⌃" : "⌄";
+      },
+      { signal: this.abort.signal },
+    );
     const grid = document.querySelector<HTMLElement>("#scene-grid")!;
     const search = document.querySelector<HTMLInputElement>("#scene-search")!;
     let category = "All";
@@ -63,7 +80,6 @@ export class ViszSuiteUI {
             host.select(module.id);
             for (const [id, folder] of sceneFolders)
               folder.hidden = id !== module.id;
-            document.querySelector("#scene-title")!.textContent = module.name;
             renderLibrary();
           },
           { signal: this.abort.signal },

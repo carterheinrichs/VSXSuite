@@ -5,10 +5,31 @@ for (const revision of [1, 2]) {
   }) => {
     await page.goto(`/?ui=${revision}`);
     await expect(page.locator("[data-scene]")).toHaveCount(21);
+    await expect(page.locator(".scene-caption")).toHaveCount(0);
+    const expanded = await page.locator("#library").boundingBox();
+    await page.getByRole("button", { name: "Minimize visualizers" }).click();
+    await expect(page.locator("#library-content")).toBeHidden();
+    await expect(page.locator("#library-toggle")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await expect
+      .poll(async () => (await page.locator("#library").boundingBox())!.height)
+      .toBeLessThan(80);
+    const collapsed = await page.locator("#library").boundingBox();
+    expect(
+      Math.abs(
+        expanded!.y + expanded!.height - collapsed!.y - collapsed!.height,
+      ),
+    ).toBeLessThan(2);
+    await page.getByRole("button", { name: "Expand visualizers" }).click();
+    await expect(page.getByRole("searchbox")).toBeVisible();
     await page.getByRole("searchbox").fill("aurora");
     await expect(page.locator("[data-scene]")).toHaveCount(1);
     await page.locator('[data-scene="aurora"]').click();
-    await expect(page.locator("#scene-title")).toHaveText("Aurora ribbons");
+    await expect(
+      page.locator(".scene-card[aria-pressed=true] strong"),
+    ).toHaveText("Aurora ribbons");
     await expect(page.locator('[data-scene="aurora"]')).toHaveAttribute(
       "aria-pressed",
       "true",

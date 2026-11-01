@@ -11,7 +11,7 @@
   <body>
     <script>
       document.body.dataset.revision =
-        new URLSearchParams(location.search).get("ui") === "2" ? "2" : "1";
+        new URLSearchParams(location.search).get("ui") === "1" ? "1" : "2";
     </script>
     <canvas id="stage"></canvas>
     <header>
@@ -20,34 +20,42 @@
         <button id="focus" aria-pressed="false">Hide controls</button>
         <button id="fullscreen">Fullscreen</button>
         <button id="export-open" class="primary">Export ↗</button
-        ><a id="about-open" href="/about.html">About</a
-        ><a href="?ui=1">Studio</a><a href="?ui=2">Immersive</a>
+        ><a id="about-open" href="/about.html">About</a>
       </div>
     </header>
     <section id="library">
-      <div class="eyebrow">EXPLORE YOUR SOUND</div>
-      <h2>Visualizers <small>21</small></h2>
-      <input
-        id="scene-search"
-        type="search"
-        placeholder="Search visualizers…"
-        aria-label="Search visualizers"
-      />
-      <div class="library-tabs">
-        <button data-category="All" class="active">All</button
-        ><button data-category="Atmospheric">Atmospheric</button
-        ><button data-category="Geometric">Geometric</button
-        ><button data-category="Classic">Classic</button>
+      <div class="panel-heading">
+        <h2>Visualizers <small>21</small></h2>
+        <button
+          id="library-toggle"
+          class="panel-toggle"
+          aria-expanded="true"
+          aria-controls="library-content"
+          aria-label="Minimize visualizers"
+        >
+          ⌄
+        </button>
       </div>
-      <div id="scene-grid"></div>
-      <p class="library-note">A different world for every sound.</p>
+      <div id="library-content">
+        <input
+          id="scene-search"
+          type="search"
+          placeholder="Search visualizers…"
+          aria-label="Search visualizers"
+        />
+        <div class="library-tabs">
+          <button data-category="All" class="active">All</button
+          ><button data-category="Atmospheric">Atmospheric</button
+          ><button data-category="Geometric">Geometric</button
+          ><button data-category="Classic">Classic</button>
+        </div>
+        <div id="scene-grid"></div>
+      </div>
     </section>
-    <div class="scene-caption">
-      <span class="eyebrow">LIVE CANVAS</span>
-      <h1 id="scene-title">Neon feedback</h1>
-      <p>Sound into motion. Make it yours.</p>
-    </div>
-    <aside id="rack" aria-label="Visual settings"></aside>
+    <aside id="rack" aria-label="Visual settings">
+      <div class="panel-heading"><h2>Control rack</h2></div>
+      <div id="rack-controls"></div>
+    </aside>
     <footer>
       <div class="transport">
         <button id="play" aria-label="Play">▶ &nbsp; PLAY</button
