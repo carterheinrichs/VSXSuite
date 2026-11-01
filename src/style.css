@@ -542,6 +542,12 @@ button.primary {
   padding: 10px 18px;
   font-weight: 600;
 }
+button.primary:hover:not(:disabled),
+button.primary:focus-visible:not(:disabled) {
+  background: #e3d6ff;
+  border-color: #e3d6ff;
+  color: #251943;
+}
 #stage {
   inset: 64px 0 66px 0;
   height: calc(100% - 130px);
