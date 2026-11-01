@@ -21,7 +21,7 @@ export class ViszSuiteUI {
     this.pane = new Pane({
       container: document.querySelector("#rack-controls")!,
     });
-    const visual = this.pane.addFolder({ title: "01  VISUAL ENGINE" });
+    const visual = this.pane.addFolder({ title: "VISUAL ENGINE" });
     const sceneFolders = new Map<string, ReturnType<Pane["addFolder"]>>();
     const library = document.querySelector<HTMLElement>("#library")!;
     const libraryToggle =
@@ -203,7 +203,7 @@ export class ViszSuiteUI {
       }
     }
     const sources = this.pane.addFolder({
-      title: "02  AUDIO SOURCE",
+      title: "AUDIO SOURCE",
       expanded: false,
     });
     sources
