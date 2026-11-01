@@ -526,6 +526,7 @@ export class ViszSuiteUI {
       download.hidden = false;
       status.textContent =
         "Video ready. Select Download video to save the full song.";
+      void new Audio("/export-ready.mp3").play().catch(() => {});
     } catch (error) {
       status.textContent =
         error instanceof Error ? error.message : "Unable to export video.";
