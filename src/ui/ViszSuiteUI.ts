@@ -154,6 +154,15 @@ export class ViszSuiteUI {
         },
         { signal: this.abort.signal },
       );
+      dialog.addEventListener(
+        "close",
+        () => {
+          if (!this.exporter.active)
+            document.querySelector<HTMLElement>("#export-status")!.hidden =
+              true;
+        },
+        { signal: this.abort.signal },
+      );
     }
     visual.addBinding(host.settings, "overlay", { label: "Neon overlay" });
     visual.addBinding(host.settings, "postFX", { label: "Master FX" });
@@ -219,6 +228,7 @@ export class ViszSuiteUI {
       .on("click", () => void this.run(() => audio.input(true)));
     sources.addButton({ title: "Stop audio" }).on("click", () => {
       audio.stop();
+      this.resetExportState();
       this.source();
     });
     document
@@ -245,6 +255,13 @@ export class ViszSuiteUI {
       () => {
         if (this.exporter.active) this.exporter.cancel();
         else void this.exportVideo();
+      },
+      { signal },
+    );
+    document.querySelector("#download-video")!.addEventListener(
+      "click",
+      () => {
+        document.querySelector<HTMLElement>("#export-status")!.hidden = true;
       },
       { signal },
     );
@@ -426,6 +443,14 @@ export class ViszSuiteUI {
         : "PAUSED";
     this.transport();
   }
+  private resetExportState() {
+    document.querySelector<HTMLElement>("#export-status")!.hidden = true;
+    document.querySelector<HTMLElement>("#download-video")!.hidden = true;
+    if (this.downloadURL) {
+      URL.revokeObjectURL(this.downloadURL);
+      this.downloadURL = "";
+    }
+  }
   private async load(file: File) {
     if (this.exporter.active) return;
     if (
@@ -435,6 +460,7 @@ export class ViszSuiteUI {
       this.error("Choose an audio file: MP3, WAV, OGG or FLAC.");
       return;
     }
+    this.resetExportState();
     await this.run(() => this.audio.file(file));
   }
   private async run(action: () => Promise<void>) {
@@ -474,6 +500,7 @@ export class ViszSuiteUI {
     file.disabled = true;
     quality.disabled = true;
     fps.disabled = true;
+    download.hidden = true;
     status.hidden = false;
     status.textContent = "Preparing full-song export…";
     try {

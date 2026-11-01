@@ -106,7 +106,6 @@
       <span>DROP YOUR SOUND</span><small>MP3 · WAV · OGG · FLAC</small>
     </div>
     <div id="error" role="alert" hidden></div>
-    <div id="export-status" role="status" hidden></div>
     <dialog id="export-dialog" aria-label="Export video settings">
       <div class="dialog-heading">
         <span class="eyebrow">RENDER & SAVE</span
@@ -129,8 +128,9 @@
           <option value="60">60 FPS · smoother</option>
         </select>
         <button id="export" class="primary" disabled>Export video</button>
-        <a id="download-video" hidden>Download video</a>
+        <a id="download-video" hidden>↓ &nbsp; Download video</a>
       </div>
+      <div id="export-status" role="status" hidden></div>
       <p class="hint">
         Open an audio file to enable export. Preview quality does not affect the
         final video.

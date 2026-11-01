@@ -124,6 +124,13 @@ test("exports an uploaded song as a playable video with audio", async ({
   expect(timing.brightest).toBeGreaterThan(20);
   timing.timestamps.forEach((time, i) => expect(time).toBeCloseTo(i / 30, 3));
   expect(timing.duration).toBeCloseTo(0.3, 1);
+  await expect(page.locator("#export-dialog #export-status")).toBeVisible();
+  const exportBox = await page.locator("#export").boundingBox();
+  const downloadBox = await page.locator("#download-video").boundingBox();
+  expect(downloadBox!.width).toBeCloseTo(exportBox!.width, 1);
+  expect(downloadBox!.height).toBeGreaterThanOrEqual(40);
+  await page.getByRole("button", { name: "Close export" }).click();
+  await expect(page.locator("#export-status")).toBeHidden();
   await expect(page.locator("#play")).toBeEnabled();
   await expect(page.locator("#export-quality")).toBeEnabled();
   const restoredWidth = await page
