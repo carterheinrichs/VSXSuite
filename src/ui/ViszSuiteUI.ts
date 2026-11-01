@@ -24,18 +24,98 @@ export class ViszSuiteUI {
     });
     const visual = this.pane.addFolder({ title: "01  VISUAL ENGINE" });
     const sceneFolders = new Map<string, ReturnType<Pane["addFolder"]>>();
-    visual
-      .addBinding(host.settings, "scene", {
-        label: "Scene",
-        options: Object.fromEntries(
-          host.modules.map((module) => [module.name, module.id]),
-        ),
-      })
-      .on("change", (event) => {
-        host.select(event.value);
-        for (const [id, folder] of sceneFolders)
-          folder.hidden = id !== event.value;
+    const grid = document.querySelector<HTMLElement>("#scene-grid")!;
+    const search = document.querySelector<HTMLInputElement>("#scene-search")!;
+    let category = "All";
+    const categoryFor = (index: number) =>
+      index >= 16
+        ? "Classic"
+        : [3, 4, 5, 9, 10, 13, 14].includes(index)
+          ? "Geometric"
+          : "Atmospheric";
+    const renderLibrary = () => {
+      grid.replaceChildren();
+      host.modules.forEach((module, index) => {
+        if (
+          (category !== "All" && categoryFor(index) !== category) ||
+          !module.name.toLowerCase().includes(search.value.toLowerCase())
+        )
+          return;
+        const button = document.createElement("button");
+        button.className = "scene-card";
+        button.dataset.scene = module.id;
+        button.style.setProperty("--hue", String((index * 39 + 265) % 360));
+        button.setAttribute(
+          "aria-pressed",
+          String(host.settings.scene === module.id),
+        );
+        const art = document.createElement("span");
+        art.className = "scene-art art-" + (index % 4);
+        const name = document.createElement("strong");
+        name.textContent = module.name;
+        const tag = document.createElement("small");
+        tag.textContent = categoryFor(index);
+        button.append(art, name, tag);
+        button.addEventListener(
+          "click",
+          () => {
+            if (this.exporter.active) return;
+            host.select(module.id);
+            for (const [id, folder] of sceneFolders)
+              folder.hidden = id !== module.id;
+            document.querySelector("#scene-title")!.textContent = module.name;
+            renderLibrary();
+          },
+          { signal: this.abort.signal },
+        );
+        grid.append(button);
       });
+      if (!grid.childElementCount)
+        grid.textContent = "No visualizers match your search.";
+    };
+    search.addEventListener("input", renderLibrary, {
+      signal: this.abort.signal,
+    });
+    document
+      .querySelectorAll<HTMLButtonElement>("[data-category]")
+      .forEach((button) =>
+        button.addEventListener(
+          "click",
+          () => {
+            category = button.dataset.category!;
+            document
+              .querySelectorAll("[data-category]")
+              .forEach((item) =>
+                item.classList.toggle("active", item === button),
+              );
+            renderLibrary();
+          },
+          { signal: this.abort.signal },
+        ),
+      );
+    renderLibrary();
+    for (const name of ["export"]) {
+      const dialog = document.querySelector<HTMLDialogElement>(
+        "#" + name + "-dialog",
+      )!;
+      document.querySelector("#" + name + "-open")!.addEventListener(
+        "click",
+        () => {
+          dialog.showModal();
+          if (name === "about") history.replaceState(null, "", "#about");
+        },
+        { signal: this.abort.signal },
+      );
+      dialog.querySelector("[data-close]")!.addEventListener(
+        "click",
+        () => {
+          dialog.close();
+          if (name === "about")
+            history.replaceState(null, "", location.pathname + location.search);
+        },
+        { signal: this.abort.signal },
+      );
+    }
     visual.addBinding(host.settings, "overlay", { label: "Neon overlay" });
     visual.addBinding(host.settings, "postFX", { label: "Master FX" });
     visual

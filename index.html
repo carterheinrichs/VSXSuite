@@ -9,29 +9,44 @@
     <title>VSXSuite</title>
   </head>
   <body>
+    <script>
+      document.body.dataset.revision =
+        new URLSearchParams(location.search).get("ui") === "2" ? "2" : "1";
+    </script>
     <canvas id="stage"></canvas>
     <header>
       <a class="brand" href="#">VSX<span>SUITE</span></a>
       <div class="view-actions">
         <button id="focus" aria-pressed="false">Hide controls</button>
         <button id="fullscreen">Fullscreen</button>
-        <select
-          id="export-quality"
-          aria-label="Export resolution"
-          title="Export resolution is independent of preview quality"
-        >
-          <option value="1080p">1080p</option>
-          <option value="1440p" selected>1440p · YouTube</option>
-          <option value="4k">4K · highest detail</option>
-        </select>
-        <select id="export-fps" aria-label="Export frame rate">
-          <option value="30">30 FPS</option>
-          <option value="60">60 FPS · smoother</option>
-        </select>
-        <button id="export" disabled>Export video</button>
-        <a id="download-video" hidden>Download video</a>
+        <button id="export-open" class="primary">Export ↗</button
+        ><a id="about-open" href="/about.html">About</a
+        ><a href="?ui=1">Studio</a><a href="?ui=2">Immersive</a>
       </div>
     </header>
+    <section id="library">
+      <div class="eyebrow">EXPLORE YOUR SOUND</div>
+      <h2>Visualizers <small>21</small></h2>
+      <input
+        id="scene-search"
+        type="search"
+        placeholder="Search visualizers…"
+        aria-label="Search visualizers"
+      />
+      <div class="library-tabs">
+        <button data-category="All" class="active">All</button
+        ><button data-category="Atmospheric">Atmospheric</button
+        ><button data-category="Geometric">Geometric</button
+        ><button data-category="Classic">Classic</button>
+      </div>
+      <div id="scene-grid"></div>
+      <p class="library-note">A different world for every sound.</p>
+    </section>
+    <div class="scene-caption">
+      <span class="eyebrow">LIVE CANVAS</span>
+      <h1 id="scene-title">Neon feedback</h1>
+      <p>Sound into motion. Make it yours.</p>
+    </div>
     <aside id="rack" aria-label="Visual settings"></aside>
     <footer>
       <div class="transport">
@@ -69,6 +84,36 @@
     </div>
     <div id="error" role="alert" hidden></div>
     <div id="export-status" role="status" hidden></div>
+    <dialog id="export-dialog" aria-label="Export video settings">
+      <div class="dialog-heading">
+        <span class="eyebrow">RENDER & SAVE</span
+        ><button data-close aria-label="Close export">×</button>
+      </div>
+      <h2>Take your visuals with you.</h2>
+      <p>Render your full audio track as a video, with every frame in sync.</p>
+      <div class="export-fields">
+        <select
+          id="export-quality"
+          aria-label="Export resolution"
+          title="Export resolution is independent of preview quality"
+        >
+          <option value="1080p">1080p</option>
+          <option value="1440p" selected>1440p · YouTube</option>
+          <option value="4k">4K · highest detail</option>
+        </select>
+        <select id="export-fps" aria-label="Export frame rate">
+          <option value="30">30 FPS</option>
+          <option value="60">60 FPS · smoother</option>
+        </select>
+        <button id="export" class="primary" disabled>Export video</button>
+        <a id="download-video" hidden>Download video</a>
+      </div>
+      <p class="hint">
+        Open an audio file to enable export. Preview quality does not affect the
+        final video.
+      </p>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -34,7 +34,7 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
   await expect
     .poll(() => page.locator("#meter").getAttribute("style"))
     .not.toContain("scaleX(0)");
-  await expect(page.locator("#rack select option")).toHaveText([
+  await expect(page.locator(".scene-card strong")).toHaveText([
     "Neon feedback",
     "Aurora ribbons",
     "Prismatic drift",
@@ -78,15 +78,18 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     ["Waterfall spectrogram", "waterfall"],
     ["Classic starfield", "starfield"],
   ]) {
-    await page.locator("#rack select").selectOption({ label });
-    await expect(page.locator("#rack select")).toHaveValue(label);
+    await page.getByRole("searchbox").fill(label);
+    await page.locator(".scene-card").click();
+    await expect(page.locator("#scene-title")).toHaveText(label);
     await page.screenshot({ path: "test-results/" + file + ".png" });
   }
-  await page.locator("#rack select").selectOption({ label: "Magnetic matter" });
-  await expect(page.locator("#rack select")).toHaveValue("Magnetic matter");
+  await page.getByRole("searchbox").fill("Magnetic matter");
+  await page.locator(".scene-card").click();
+  await expect(page.locator("#scene-title")).toHaveText("Magnetic matter");
   await page.screenshot({ path: "test-results/ferrofluid.png" });
-  await page.locator("#rack select").selectOption({ label: "Neon feedback" });
-  await expect(page.locator("#rack select")).toHaveValue("Neon feedback");
+  await page.getByRole("searchbox").fill("Neon feedback");
+  await page.locator(".scene-card").click();
+  await expect(page.locator("#scene-title")).toHaveText("Neon feedback");
   await page.screenshot({ path: "test-results/neon.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("#stage")).toHaveJSProperty("clientWidth", 390);

@@ -29,6 +29,7 @@ test("exports an uploaded song as a playable video with audio", async ({
     .locator("#file-input")
     .setInputFiles({ name: "song.wav", mimeType: "audio/wav", buffer: wav });
   await expect(page.locator("#export")).toBeEnabled();
+  await page.locator("#export-open").click();
   await page.locator("#export").click();
   await expect(page.locator("#download-video")).toBeVisible({ timeout: 90000 });
   await expect(page.locator("#download-video")).toHaveAttribute(

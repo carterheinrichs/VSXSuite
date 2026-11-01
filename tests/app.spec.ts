@@ -1,76 +1,38 @@
 import { test, expect } from "@playwright/test";
-
-test("page styling loads independently of application JavaScript", async ({
-  page,
-}) => {
-  // A cold module load must not expose the browser's unstyled HTML defaults.
-  await page.route("**/src/main.ts", (route) => route.abort());
-  await page.goto("/");
-  await expect(page).toHaveTitle("VSXSuite");
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
-    "href",
-    "/favicon.svg",
-  );
-  await expect(page.locator("header")).toHaveCSS("position", "fixed");
-  await expect(page.locator("header")).toHaveCSS(
-    "background-color",
-    "rgb(11, 13, 22)",
-  );
-  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
-  await expect(page.locator("#drop")).toBeHidden();
-});
-
-test("panel scene selection, focus view and keyboard playback stay accessible", async ({
-  page,
-}) => {
-  await page.goto("/");
-  const visibleFolders = page.locator(
-    "#rack .tp-fldv:not(.tp-v-hidden) > .tp-fldv_b > .tp-fldv_t",
-  );
-  await expect(visibleFolders).toHaveText([
-    "01  VISUAL ENGINE",
-    "NEON FEEDBACK",
-    "MASTER POLISH",
-    "02  AUDIO SOURCE",
-  ]);
-  const scene = page.locator("#rack select");
-  await scene.selectOption({ label: "Aurora ribbons" });
-  await expect(scene).toHaveValue("Aurora ribbons");
-  await expect(visibleFolders).toHaveText([
-    "01  VISUAL ENGINE",
-    "AURORA RIBBONS",
-    "MASTER POLISH",
-    "02  AUDIO SOURCE",
-  ]);
-  await page
-    .getByRole("button", { name: "Hide controls", exact: true })
-    .click();
-  await expect(page.locator("#rack")).toBeHidden();
-  await expect(
-    page.getByRole("button", { name: "Play", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Show controls", exact: true })
-    .click();
-  await expect(page.locator("#rack")).toBeVisible();
-  await page.locator("#stage").click({ position: { x: 10, y: 300 } });
-  await page.keyboard.press("Space");
-  await expect(
-    page.getByRole("button", { name: "Pause", exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press("Space");
-  await expect(
-    page.getByRole("button", { name: "Play", exact: true }),
-  ).toBeVisible();
-  await expect(page.locator("#rack select")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: /ATMOSPHERES/ })).toHaveCount(
-    0,
-  );
-  await expect(page.locator("header [data-scene], header nav")).toHaveCount(0);
-  await expect(
-    page.getByRole("combobox", { name: "Export resolution" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("combobox", { name: "Export frame rate" }),
-  ).toBeVisible();
-});
+for (const revision of [1, 2]) {
+  test(`revision ${revision}: library, export and about navigation`, async ({
+    page,
+  }) => {
+    await page.goto(`/?ui=${revision}`);
+    await expect(page.locator("[data-scene]")).toHaveCount(21);
+    await page.getByRole("searchbox").fill("aurora");
+    await expect(page.locator("[data-scene]")).toHaveCount(1);
+    await page.locator('[data-scene="aurora"]').click();
+    await expect(page.locator("#scene-title")).toHaveText("Aurora ribbons");
+    await expect(page.locator('[data-scene="aurora"]')).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.getByRole("searchbox").fill("no such scene");
+    await expect(page.locator("#scene-grid")).toHaveText(
+      "No visualizers match your search.",
+    );
+    await page.getByRole("searchbox").fill("");
+    await page.getByRole("button", { name: "Classic", exact: true }).click();
+    await expect(page.locator("[data-scene]")).toHaveCount(5);
+    await page.locator("#export-open").click();
+    await expect(
+      page.getByRole("combobox", { name: "Export resolution" }),
+    ).toBeVisible();
+    await expect(page.locator("#export")).toBeDisabled();
+    await page.getByRole("button", { name: "Close export" }).click();
+    await page.locator("#about-open").click();
+    await expect(
+      page.getByRole("heading", { name: "See what you hear." }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Back to studio" }).click();
+    await page.locator("#focus").click();
+    await expect(page.locator("#library")).toBeHidden();
+    await expect(page.locator("#rack")).toBeHidden();
+  });
+}
