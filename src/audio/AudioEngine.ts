@@ -179,6 +179,11 @@ export class AudioEngine {
     await this.ready();
     this.stop();
     const token = this.generation;
+    if (system && (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== "function")) {
+      throw new Error(
+        "System audio sharing is not supported on this device or mobile browser. Use Microphone or Open Audio.",
+      );
+    }
     const stream = system
       ? await navigator.mediaDevices.getDisplayMedia({
           video: true,
