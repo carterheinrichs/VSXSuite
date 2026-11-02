@@ -27,9 +27,11 @@ button:disabled {
 * {
   box-sizing: border-box;
 }
+html,
 body {
   margin: 0;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 button,
 a {
@@ -851,7 +853,7 @@ body[data-revision="2"] header {
   background: #0b0d16e8;
   left: 20px;
   right: 20px;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   border: 1px solid #ffffff17;
   border-radius: 12px;
   height: 58px;
@@ -866,7 +868,7 @@ body[data-revision="2"] #stage {
 body[data-revision="2"] #library {
   top: auto;
   left: 24px;
-  bottom: 105px;
+  bottom: calc(105px + env(safe-area-inset-bottom, 0px));
   width: 346px;
   height: 390px;
   border: 1px solid #ffffff20;
@@ -896,7 +898,7 @@ body[data-revision="2"] .scene-card small {
   display: none;
 }
 body[data-revision="2"] #rack {
-  top: 96px;
+  top: calc(96px + env(safe-area-inset-top, 0px));
   right: 24px;
   background: #10131eeb;
 }
@@ -911,7 +913,7 @@ body[data-revision="2"] .scene-caption h1 {
 body[data-revision="2"] footer {
   left: 24px;
   right: 24px;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   border: 1px solid #ffffff20;
   border-radius: 12px;
   background: #10131ef2;
@@ -963,8 +965,8 @@ body[data-revision="2"] footer {
   }
   #library,
   body[data-revision="2"] #library {
-    left: 10px;
-    bottom: 90px;
+    left: 8px;
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
     top: auto;
     width: 210px;
     height: 300px;
@@ -974,14 +976,17 @@ body[data-revision="2"] footer {
   #rack,
   body[data-revision="2"] #rack {
     right: 8px;
-    top: 90px;
-    width: 175px;
-    max-height: 260px;
+    top: calc(76px + env(safe-area-inset-top, 0px));
+    width: 195px;
+    max-height: calc(
+      100dvh - 170px - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
   }
   .scene-caption,
   body[data-revision="2"] .scene-caption {
     left: 18px;
-    top: 100px;
+    top: calc(88px + env(safe-area-inset-top, 0px));
     bottom: auto;
     max-width: 160px;
   }
@@ -997,7 +1002,7 @@ body[data-revision="2"] footer {
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 10px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px;
     gap: 8px;
   }
   .transport {
@@ -1009,6 +1014,7 @@ body[data-revision="2"] footer {
   body[data-revision="2"] header {
     left: 8px;
     right: 8px;
+    top: calc(8px + env(safe-area-inset-top, 0px));
     padding: 8px;
   }
   body[data-revision="2"] #scene-grid {

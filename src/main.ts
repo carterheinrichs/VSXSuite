@@ -22,3 +22,14 @@ try {
   element.textContent =
     error instanceof Error ? error.message : "Unable to initialize graphics.";
 }
+
+if (
+  "serviceWorker" in navigator &&
+  window.location.protocol.startsWith("http")
+) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("Service worker registration failed:", err);
+    });
+  });
+}
