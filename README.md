@@ -2,6 +2,9 @@
 
 A local-first modular music visualizer built with strict TypeScript, Vite, Three.js/WebGL2, native Web Audio and Tweakpane. No audio leaves the browser. Assets and fonts require no external service.
 
+<img width="1853" height="1038" alt="image" src="https://github.com/user-attachments/assets/48bcd723-4417-4ba3-bf52-c6aad04153d5" />
+
+
 ## Run
 
 ```sh
