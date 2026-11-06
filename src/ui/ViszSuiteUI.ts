@@ -1,6 +1,12 @@
 import { Pane } from "tweakpane";
 import type { VisualizerHost } from "../core/VisualizerHost";
 import type { AudioEngine } from "../audio/AudioEngine";
+import {
+  getCatalogTracks,
+  probeTrackDuration,
+  subscribeCatalog,
+  type CatalogTrack,
+} from "../audio/MusicCatalog";
 import type { IVisualModule } from "../core/types";
 import { VideoExporter, type EXPORT_PRESETS } from "../core/VideoExporter";
 export class ViszSuiteUI {
@@ -10,6 +16,11 @@ export class ViszSuiteUI {
   private scrubbing = false;
   private readonly exporter = new VideoExporter();
   private downloadURL = "";
+  private catalogTracks: CatalogTrack[] = getCatalogTracks();
+  private readonly catalogDurations = new Map<string, number>();
+  private readonly catalogPending = new Set<string>();
+  private activeTrackId = "";
+  private readonly unsubscribeCatalog: () => void;
   private readonly play = document.querySelector<HTMLButtonElement>("#play")!;
   private readonly seek = document.querySelector<HTMLInputElement>("#seek")!;
   private readonly elapsed = document.querySelector<HTMLElement>("#elapsed")!;
@@ -23,6 +34,27 @@ export class ViszSuiteUI {
     });
     const visual = this.pane.addFolder({ title: "VISUAL ENGINE" });
     const sceneFolders = new Map<string, ReturnType<Pane["addFolder"]>>();
+    const catalog = document.querySelector<HTMLElement>("#catalog")!;
+    const catalogToggle =
+      document.querySelector<HTMLButtonElement>("#catalog-toggle")!;
+    catalogToggle.addEventListener(
+      "click",
+      () => {
+        const collapsed = catalog.classList.toggle("is-collapsed");
+        document.querySelector<HTMLElement>("#catalog-content")!.inert =
+          collapsed;
+        catalogToggle.setAttribute("aria-expanded", String(!collapsed));
+        catalogToggle.setAttribute(
+          "aria-label",
+          collapsed ? "Expand music catalog" : "Minimize music catalog",
+        );
+      },
+      { signal: this.abort.signal },
+    );
+    this.renderCatalog();
+    this.unsubscribeCatalog = subscribeCatalog((tracks) => {
+      this.setCatalogTracks(tracks);
+    });
     const library = document.querySelector<HTMLElement>("#library")!;
     const libraryToggle =
       document.querySelector<HTMLButtonElement>("#library-toggle")!;
@@ -217,16 +249,24 @@ export class ViszSuiteUI {
       title: "AUDIO SOURCE",
       expanded: false,
     });
-    sources
-      .addButton({ title: "Procedural beat" })
-      .on("click", () => void this.run(() => audio.synth()));
-    sources
-      .addButton({ title: "Microphone" })
-      .on("click", () => void this.run(() => audio.input()));
-    sources
-      .addButton({ title: "Share system / tab audio" })
-      .on("click", () => void this.run(() => audio.input(true)));
+    sources.addButton({ title: "Procedural beat" }).on("click", () => {
+      this.activeTrackId = "";
+      this.renderCatalog();
+      void this.run(() => audio.synth());
+    });
+    sources.addButton({ title: "Microphone" }).on("click", () => {
+      this.activeTrackId = "";
+      this.renderCatalog();
+      void this.run(() => audio.input());
+    });
+    sources.addButton({ title: "Share system / tab audio" }).on("click", () => {
+      this.activeTrackId = "";
+      this.renderCatalog();
+      void this.run(() => audio.input(true));
+    });
     sources.addButton({ title: "Stop audio" }).on("click", () => {
+      this.activeTrackId = "";
+      this.renderCatalog();
       audio.stop();
       this.resetExportState();
       this.source();
@@ -403,6 +443,89 @@ export class ViszSuiteUI {
     host.onError = (message) => this.error(message);
     this.transport();
   }
+  setCatalogTracks(tracks: CatalogTrack[]) {
+    this.catalogTracks = tracks;
+    if (
+      this.activeTrackId &&
+      !tracks.some((track) => track.id === this.activeTrackId)
+    ) {
+      this.activeTrackId = "";
+    }
+    this.renderCatalog();
+  }
+  private renderCatalog() {
+    const list = document.querySelector<HTMLElement>("#catalog-list")!;
+    const count = document.querySelector<HTMLElement>("#catalog-count")!;
+    list.replaceChildren();
+    count.textContent = String(this.catalogTracks.length);
+    if (!this.catalogTracks.length) {
+      const empty = document.createElement("p");
+      empty.className = "catalog-empty";
+      empty.textContent = "Place audio files in /music named Name - Author.ext";
+      list.append(empty);
+      return;
+    }
+    for (const track of this.catalogTracks) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "catalog-track";
+      button.dataset.track = track.id;
+      button.setAttribute(
+        "aria-pressed",
+        String(this.activeTrackId === track.id),
+      );
+      const title = document.createElement("span");
+      title.className = "catalog-track-title";
+      title.textContent = track.displayName;
+      const runtime = document.createElement("span");
+      runtime.className = "catalog-track-runtime";
+      const cached = this.catalogDurations.get(track.id);
+      runtime.textContent =
+        cached !== undefined ? this.formatTime(cached) : "—:—";
+      button.append(title, runtime);
+      button.addEventListener(
+        "click",
+        () => void this.loadCatalogTrack(track),
+        { signal: this.abort.signal },
+      );
+      list.append(button);
+      if (cached === undefined && !this.catalogPending.has(track.id)) {
+        this.catalogPending.add(track.id);
+        void probeTrackDuration(track.url, this.abort.signal)
+          .then((duration) => {
+            this.catalogPending.delete(track.id);
+            this.catalogDurations.set(track.id, duration);
+            this.updateTrackRuntime(track.id, duration);
+          })
+          .catch(() => {
+            this.catalogPending.delete(track.id);
+          });
+      }
+    }
+  }
+  private updateTrackRuntime(trackId: string, duration: number) {
+    const buttons =
+      document.querySelectorAll<HTMLButtonElement>(".catalog-track");
+    for (const button of buttons) {
+      if (button.dataset.track === trackId) {
+        const runtime = button.querySelector<HTMLElement>(
+          ".catalog-track-runtime",
+        );
+        if (runtime) runtime.textContent = this.formatTime(duration);
+      }
+    }
+  }
+  private async loadCatalogTrack(track: CatalogTrack) {
+    if (this.exporter.active) return;
+    this.activeTrackId = track.id;
+    this.renderCatalog();
+    this.resetExportState();
+    await this.run(() => this.audio.track(track.url, track.displayName));
+    if (this.audio.duration > 0) {
+      this.catalogDurations.set(track.id, this.audio.duration);
+      this.updateTrackRuntime(track.id, this.audio.duration);
+    }
+  }
   private formatTime(seconds: number) {
     const whole = Math.max(0, Math.floor(seconds));
     return Math.floor(whole / 60) + ":" + String(whole % 60).padStart(2, "0");
@@ -460,6 +583,8 @@ export class ViszSuiteUI {
       this.error("Choose an audio file: MP3, WAV, OGG or FLAC.");
       return;
     }
+    this.activeTrackId = "";
+    this.renderCatalog();
     this.resetExportState();
     await this.run(() => this.audio.file(file));
   }
@@ -490,6 +615,7 @@ export class ViszSuiteUI {
   private async exportVideo() {
     const status = document.querySelector<HTMLElement>("#export-status")!;
     const rack = document.querySelector<HTMLElement>("#rack")!;
+    const catalog = document.querySelector<HTMLElement>("#catalog")!;
     const file = document.querySelector<HTMLButtonElement>("#file")!;
     const download =
       document.querySelector<HTMLAnchorElement>("#download-video")!;
@@ -497,6 +623,7 @@ export class ViszSuiteUI {
       document.querySelector<HTMLSelectElement>("#export-quality")!;
     const fps = document.querySelector<HTMLSelectElement>("#export-fps")!;
     rack.inert = true;
+    catalog.inert = true;
     file.disabled = true;
     quality.disabled = true;
     fps.disabled = true;
@@ -532,6 +659,7 @@ export class ViszSuiteUI {
         error instanceof Error ? error.message : "Unable to export video.";
     } finally {
       rack.inert = false;
+      catalog.inert = false;
       file.disabled = false;
       quality.disabled = false;
       fps.disabled = false;
@@ -542,6 +670,7 @@ export class ViszSuiteUI {
   dispose() {
     this.exporter.cancel();
     if (this.downloadURL) URL.revokeObjectURL(this.downloadURL);
+    this.unsubscribeCatalog();
     this.abort.abort();
     this.pane.dispose();
     this.host.onStats = null;

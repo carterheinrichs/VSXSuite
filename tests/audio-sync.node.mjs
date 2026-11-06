@@ -115,3 +115,45 @@ test("decoded analysis wraps samples at song boundaries only for looping playbac
     "offline export retains silence before the start",
   );
 });
+
+const catalogUrl = await moduleUrl("../src/audio/MusicCatalog.ts", {
+  'import.meta.glob<string>(\n  "/music/*.{mp3,wav,ogg,flac,m4a,aac,opus,MP3,WAV,OGG,FLAC,M4A,AAC,OPUS}",\n  { query: "?url", import: "default", eager: true },\n)':
+    "({})",
+});
+const {
+  parseCatalogTrack,
+  buildCatalogTracks,
+  updateCatalogFiles,
+  subscribeCatalog,
+} = await import(catalogUrl);
+
+test("music catalog strips file extensions from Name - Author.file and updates dynamically", () => {
+  const parsed = parseCatalogTrack(
+    "/music/Solar Echoes - Astral Projection.flac",
+    "/assets/solar.flac",
+  );
+  assert.equal(parsed.displayName, "Solar Echoes - Astral Projection");
+  assert.equal(parsed.name, "Solar Echoes");
+  assert.equal(parsed.author, "Astral Projection");
+
+  const list = buildCatalogTracks({
+    "/music/Velvet Horizon - Synthwave Collective.mp3": "/v.mp3",
+    "/music/Aurora Pulse - Nova.wav": "/a.wav",
+    "/music/.gitkeep": "/gitkeep",
+  });
+  assert.deepEqual(
+    list.map((t) => t.displayName),
+    ["Aurora Pulse - Nova", "Velvet Horizon - Synthwave Collective"],
+  );
+
+  let latest = [];
+  const unsubscribe = subscribeCatalog((tracks) => {
+    latest = tracks;
+  });
+  updateCatalogFiles({
+    "/music/Midnight Drift - Echoes.ogg": "/m.ogg",
+  });
+  assert.equal(latest.length, 1);
+  assert.equal(latest[0].displayName, "Midnight Drift - Echoes");
+  unsubscribe();
+});

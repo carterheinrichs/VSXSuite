@@ -40,6 +40,29 @@
         ><a id="about-open" href="/about.html">About</a>
       </div>
     </header>
+    <section id="catalog" aria-label="Music catalog">
+      <div class="panel-heading">
+        <h2>
+          Music catalog <small id="catalog-count" aria-live="polite"></small>
+        </h2>
+        <button
+          id="catalog-toggle"
+          class="panel-toggle"
+          aria-expanded="true"
+          aria-controls="catalog-content"
+          aria-label="Minimize music catalog"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="m4 10 4-4 4 4" />
+          </svg>
+        </button>
+      </div>
+      <div id="catalog-motion">
+        <div id="catalog-content">
+          <div id="catalog-list"></div>
+        </div>
+      </div>
+    </section>
     <section id="library">
       <div class="panel-heading">
         <h2>Visualizers <small id="scene-count" aria-live="polite"></small></h2>
