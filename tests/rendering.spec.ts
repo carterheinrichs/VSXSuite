@@ -25,6 +25,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       modules.AcidChromeModule,
       modules.PulseReactorModule,
       modules.PrismaticTunnelModule,
+      modules.TopographicContoursModule,
     ]) {
       const scene = new Module();
       scene.init(renderer, 128, 80);
@@ -103,7 +104,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     expect(result.contrast, result.id).toBeGreaterThan(30);
     expect(result.opaque, result.id).toBe(true);
   }
-  expect(new Set(results.map((r) => r.signature)).size).toBe(8);
+  expect(new Set(results.map((r) => r.signature)).size).toBe(10);
   expect(errors).toEqual([]);
 });
 

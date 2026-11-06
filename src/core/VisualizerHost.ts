@@ -9,6 +9,7 @@ import {
   AcidChromeModule,
   PulseReactorModule,
   PrismaticTunnelModule,
+  TopographicContoursModule,
 } from "../modules/PsychedelicModules";
 import {
   AuroraRibbonsModule,
@@ -49,6 +50,7 @@ export class VisualizerHost {
     new AcidChromeModule(),
     new PulseReactorModule(),
     new PrismaticTunnelModule(),
+    new TopographicContoursModule(),
     new RealisticFerrofluidModule(),
     new EvolvingAtmosphereModule(),
     new ClassicSpectrumModule(),

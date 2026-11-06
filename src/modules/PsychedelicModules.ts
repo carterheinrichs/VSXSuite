@@ -2,11 +2,12 @@ import * as T from "three";
 import type { AudioFrameData } from "../core/types";
 import { ShaderModule } from "./ShaderModule";
 import { common, FullscreenPass } from "../shaders/shared";
+import { simplex } from "../shaders/simplex";
 
 const header =
   common +
   `
-uniform float uIntensity,uHue,uWarp,uSymmetry,uTwist;
+uniform float uIntensity,uHue,uWarp,uSymmetry,uTwist,uContours,uRelief;
 uniform vec4 uShockwaves[12];
 float glow(float d,float width){return exp(-abs(d)/max(width,1./uResolution.y));}
 vec3 color(float h){return palette(h+uHue);}
@@ -140,6 +141,72 @@ void main(){
  gl_FragColor=vec4(col,1.);
 }`;
 
+const contours =
+  header +
+  simplex +
+  `
+float terrain(vec2 p,out vec2 flow){
+ float t=uTime;
+ vec2 drift=vec2(t*.16,-t*.11);
+ vec2 q=rot(sin(t*.07)*.25)*p+drift;
+ float w1=snoise(vec3(q*.62,t*.2+uBass*.18));
+ float w2=snoise(vec3(q*.62+vec2(4.2,-3.1),t*.2+2.4-uMid*.15));
+ flow=vec2(w1,w2)*(.42+uMid*.32+uBass*.18)*uWarp;
+ vec2 wp=q+flow;
+ float h1=snoise(vec3(wp*.78,t*.22))*(.66+uSub*.28+uBass*.26);
+ float h2=snoise(vec3(wp*1.65+vec2(1.9,-2.7),t*.31))*.34*(.85+uMid*.38);
+ float h3=snoise(vec3(wp*3.2-vec2(3.3,1.4),t*.44))*.15*(.7+uTreble*.58);
+ float ridge=snoise(vec3(wp*1.15-flow*.6,t*.16-1.7))*(.18+uBeat*.16);
+ float sampleU=clamp(.5+.45*sin(wp.x*.85+wp.y*.65+w1*1.2),0.,1.);
+ float spec=fft(sampleU)*2.-1.;
+ float wv=wave(clamp(.5+.4*cos(wp.y*.9-wp.x*.7+w2),0.,1.));
+ return h1+h2+h3+ridge+(spec*.085+wv*.05)*(.4+uWarp*.45);
+}
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.2;
+ float r=length(p),t=uTime;
+ vec2 flow;
+ float h=terrain(p,flow);
+ vec2 dp=max(abs(vec2(dFdx(p.x),dFdy(p.y))),vec2(1e-4));
+ vec2 grad=vec2(dFdx(h),dFdy(h))/dp;
+ vec3 n=normalize(vec3(-grad*(.85+uRelief*.75),1.));
+ float density=5.5+max(.2,uContours)*5.5;
+ float scaled=h*density;
+ float dh=max(fwidth(scaled),1e-4);
+ // Minor isolines and every-5th major index contours with screen-space anti-aliasing.
+ float minorDist=abs(fract(scaled-.5)-.5)/dh;
+ float minorLine=1.-smoothstep(.55,1.65,minorDist);
+ float minorGlow=exp(-minorDist*.34);
+ float majorScaled=scaled*.2;
+ float dhMajor=max(fwidth(majorScaled),1e-4);
+ float majorDist=abs(fract(majorScaled-.5)-.5)/dhMajor;
+ float majorLine=1.-smoothstep(.85,2.05,majorDist);
+ float majorGlow=exp(-majorDist*.22);
+ float band=floor(scaled);
+ float stepFract=smoothstep(0.,.18,fract(scaled))*(1.-smoothstep(.82,1.,fract(scaled)));
+ float elev=clamp(h*.65+.5,0.,1.);
+ float shade=clamp(dot(n,normalize(vec3(-.55,.65,1.1))),0.,1.);
+ float rim=pow(clamp(1.-n.z,0.,1.),1.4);
+ float hueBase=h*.38+band*.024+length(flow)*.18-t*.028;
+ vec3 valley=vec3(.006,.01,.024);
+ vec3 hypso=color(hueBase+atan(n.y,n.x)*.06);
+ vec3 col=mix(valley,hypso*(.14+elev*.26),smoothstep(-.85,.95,h));
+ col*=.55+shade*.65*uRelief+stepFract*.18;
+ col+=color(hueBase+.12)*rim*(.22+uMid*.28)*uRelief;
+ // Subtle warped cartographic survey grid in low-lying basins.
+ vec2 grid=abs(fract((p+flow*.35)*1.6-.5)-.5)/max(fwidth((p+flow*.35)*1.6),vec2(1e-4));
+ float graticule=1.-smoothstep(.7,1.8,min(grid.x,grid.y));
+ col+=color(hueBase+.45)*graticule*.065*(1.-elev*.6);
+ // Luminous minor and major contour isolines.
+ vec3 minorCol=color(hueBase+.2+uBass*.1);
+ vec3 majorCol=color(hueBase+.38+uBeat*.16);
+ col+=minorCol*(minorLine*(.75+uMid*.55)+minorGlow*.18)*(0.65+elev*.55);
+ col+=majorCol*(majorLine*(1.45+uTreble*.85+uBeat*.75)+majorGlow*(.38+uRms*.35));
+ col+=vec3(.75,.92,1.)*majorLine*majorLine*(.28+uTreble*.55+uBeat*.4);
+ col*=uIntensity*(.65+uRms*.65)*(1.-smoothstep(1.05,2.05,r)*.68);
+ gl_FragColor=vec4(col,1.);
+}`;
+
 abstract class PsychedelicModule extends ShaderModule {
   protected abstract readonly fragment: string;
   abstract params: {
@@ -149,6 +216,8 @@ abstract class PsychedelicModule extends ShaderModule {
     warp: number;
     symmetry?: number;
     twist?: number;
+    contours?: number;
+    relief?: number;
   };
   private phase = 0;
   private nextShockwave = 0;
@@ -162,6 +231,8 @@ abstract class PsychedelicModule extends ShaderModule {
     uWarp: { value: 1 },
     uSymmetry: { value: 8 },
     uTwist: { value: 1 },
+    uContours: { value: 1.2 },
+    uRelief: { value: 1 },
     uShockwaves: { value: this.shockwaves },
   };
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
@@ -180,6 +251,8 @@ abstract class PsychedelicModule extends ShaderModule {
     this.extra.uWarp.value = this.params.warp;
     this.extra.uSymmetry.value = this.params.symmetry ?? 8;
     this.extra.uTwist.value = this.params.twist ?? 1;
+    this.extra.uContours.value = this.params.contours ?? 1.2;
+    this.extra.uRelief.value = this.params.relief ?? 1;
     if (this.id !== "pulse-reactor") return;
     for (let i = 0; i < this.shockwaves.length; i++) {
       const sw = this.shockwaves[i];
@@ -221,4 +294,17 @@ export class PrismaticTunnelModule extends PsychedelicModule {
   readonly name = "Prismatic Tunnel";
   protected readonly fragment = tunnel;
   params = { speed: 0.85, intensity: 1.25, hue: 0.65, warp: 1, twist: 1 };
+}
+export class TopographicContoursModule extends PsychedelicModule {
+  readonly id = "topographic-contours";
+  readonly name = "Topographic Contours";
+  protected readonly fragment = contours;
+  params = {
+    speed: 0.8,
+    intensity: 1.25,
+    hue: 0.28,
+    warp: 1.15,
+    contours: 1.2,
+    relief: 1,
+  };
 }
