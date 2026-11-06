@@ -213,6 +213,21 @@ export class AudioEngine {
     this.sourceName = file.name;
     this.fileLoaded = true;
   }
+  async track(url: string, name: string) {
+    await this.ready();
+    this.stop();
+    const token = this.generation;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Unable to load catalog track.");
+    const buffer = await this.context!.decodeAudioData(
+      await response.arrayBuffer(),
+    );
+    if (token !== this.generation) return;
+    this.output!.gain.value = 0.65;
+    this.startBuffer(buffer);
+    this.sourceName = name;
+    this.fileLoaded = true;
+  }
   async input(system = false) {
     await this.ready();
     this.stop();
