@@ -145,30 +145,32 @@ const contours =
   header +
   simplex +
   `
-float terrain(vec2 p,out vec2 flow){
+vec4 terrain(vec2 p,out vec2 flow){
  float t=uTime;
- vec2 drift=vec2(t*.16,-t*.11);
- vec2 q=rot(sin(t*.07)*.25)*p+drift;
- float w1=snoise(vec3(q*.62,t*.2+uBass*.18));
- float w2=snoise(vec3(q*.62+vec2(4.2,-3.1),t*.2+2.4-uMid*.15));
- flow=vec2(w1,w2)*(.42+uMid*.32+uBass*.18)*uWarp;
+ vec2 drift=vec2(t*.12,-t*.085);
+ vec2 q=rot(sin(t*.045)*.22)*p+drift;
+ vec4 w1=snoiseGrad(vec3(q*.52,t*.13));
+ vec4 w2=snoiseGrad(vec3(q*.52+vec2(4.2,-3.1),t*.13+2.4));
+ float warpScale=(.36+uMid*.18+uBass*.12)*uWarp;
+ flow=vec2(w1.w,w2.w)*warpScale;
  vec2 wp=q+flow;
- float h1=snoise(vec3(wp*.78,t*.22))*(.66+uSub*.28+uBass*.26);
- float h2=snoise(vec3(wp*1.65+vec2(1.9,-2.7),t*.31))*.34*(.85+uMid*.38);
- float h3=snoise(vec3(wp*3.2-vec2(3.3,1.4),t*.44))*.15*(.7+uTreble*.58);
- float ridge=snoise(vec3(wp*1.15-flow*.6,t*.16-1.7))*(.18+uBeat*.16);
- float sampleU=clamp(.5+.45*sin(wp.x*.85+wp.y*.65+w1*1.2),0.,1.);
- float spec=fft(sampleU)*2.-1.;
- float wv=wave(clamp(.5+.4*cos(wp.y*.9-wp.x*.7+w2),0.,1.));
- return h1+h2+h3+ridge+(spec*.085+wv*.05)*(.4+uWarp*.45);
+ vec4 n1=snoiseGrad(vec3(wp*.72,t*.16));
+ vec4 n2=snoiseGrad(vec3(wp*1.48+vec2(1.9,-2.7),t*.22));
+ vec4 n3=snoiseGrad(vec3(wp*2.85-vec2(3.3,1.4),t*.29));
+ float a1=.68+uSub*.18+uBass*.16;
+ float a2=.33*(.88+uMid*.22);
+ float a3=.13*(.78+uTreble*.28);
+ float h=n1.w*a1+n2.w*a2+n3.w*a3;
+ vec2 g=n1.xy*.72*a1+n2.xy*1.48*a2+n3.xy*2.85*a3;
+ return vec4(g,0.,h);
 }
 void main(){
  vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.2;
  float r=length(p),t=uTime;
  vec2 flow;
- float h=terrain(p,flow);
- vec2 dp=max(abs(vec2(dFdx(p.x),dFdy(p.y))),vec2(1e-4));
- vec2 grad=vec2(dFdx(h),dFdy(h))/dp;
+ vec4 ter=terrain(p,flow);
+ float h=ter.w;
+ vec2 grad=ter.xy;
  vec3 n=normalize(vec3(-grad*(.85+uRelief*.75),1.));
  float density=5.5+max(.2,uContours)*5.5;
  float scaled=h*density;
@@ -187,23 +189,19 @@ void main(){
  float elev=clamp(h*.65+.5,0.,1.);
  float shade=clamp(dot(n,normalize(vec3(-.55,.65,1.1))),0.,1.);
  float rim=pow(clamp(1.-n.z,0.,1.),1.4);
- float hueBase=h*.38+band*.024+length(flow)*.18-t*.028;
+ float hueBase=h*.38+band*.024+length(flow)*.18-t*.024;
  vec3 valley=vec3(.006,.01,.024);
  vec3 hypso=color(hueBase+atan(n.y,n.x)*.06);
  vec3 col=mix(valley,hypso*(.14+elev*.26),smoothstep(-.85,.95,h));
  col*=.55+shade*.65*uRelief+stepFract*.18;
- col+=color(hueBase+.12)*rim*(.22+uMid*.28)*uRelief;
- // Subtle warped cartographic survey grid in low-lying basins.
- vec2 grid=abs(fract((p+flow*.35)*1.6-.5)-.5)/max(fwidth((p+flow*.35)*1.6),vec2(1e-4));
- float graticule=1.-smoothstep(.7,1.8,min(grid.x,grid.y));
- col+=color(hueBase+.45)*graticule*.065*(1.-elev*.6);
+ col+=color(hueBase+.12)*rim*(.22+uMid*.22)*uRelief;
  // Luminous minor and major contour isolines.
- vec3 minorCol=color(hueBase+.2+uBass*.1);
- vec3 majorCol=color(hueBase+.38+uBeat*.16);
- col+=minorCol*(minorLine*(.75+uMid*.55)+minorGlow*.18)*(0.65+elev*.55);
- col+=majorCol*(majorLine*(1.45+uTreble*.85+uBeat*.75)+majorGlow*(.38+uRms*.35));
- col+=vec3(.75,.92,1.)*majorLine*majorLine*(.28+uTreble*.55+uBeat*.4);
- col*=uIntensity*(.65+uRms*.65)*(1.-smoothstep(1.05,2.05,r)*.68);
+ vec3 minorCol=color(hueBase+.2+uBass*.08);
+ vec3 majorCol=color(hueBase+.38+uMid*.1);
+ col+=minorCol*(minorLine*(.78+uMid*.45)+minorGlow*.18)*(0.65+elev*.55);
+ col+=majorCol*(majorLine*(1.5+uTreble*.65+uBass*.35)+majorGlow*(.38+uRms*.3));
+ col+=vec3(.75,.92,1.)*majorLine*majorLine*(.3+uTreble*.45);
+ col*=uIntensity*(.68+uRms*.55)*(1.-smoothstep(1.05,2.05,r)*.68);
  gl_FragColor=vec4(col,1.);
 }`;
 
@@ -220,6 +218,9 @@ abstract class PsychedelicModule extends ShaderModule {
     relief?: number;
   };
   private phase = 0;
+  private smoothBass = 0;
+  private smoothMid = 0;
+  private smoothTreble = 0;
   private nextShockwave = 0;
   private readonly shockwaves = Array.from(
     { length: 12 },
@@ -244,7 +245,18 @@ abstract class PsychedelicModule extends ShaderModule {
   }
   override update(audio: AudioFrameData, time: number, dt: number) {
     super.update(audio, time, dt);
-    this.phase += dt * this.params.speed;
+    if (this.id === "topographic-contours") {
+      const k = dt > 0 ? 1 - Math.exp(-dt * 3.2) : 1;
+      this.smoothBass += (audio.bass - this.smoothBass) * k;
+      this.smoothMid += (audio.mid - this.smoothMid) * k;
+      this.smoothTreble += (audio.treble - this.smoothTreble) * k;
+      this.uniforms.uBass.value = this.smoothBass;
+      this.uniforms.uMid.value = this.smoothMid;
+      this.uniforms.uTreble.value = this.smoothTreble;
+      this.phase += dt * this.params.speed * (1 + this.smoothBass * 0.35);
+    } else {
+      this.phase += dt * this.params.speed;
+    }
     this.uniforms.uTime.value = this.phase;
     this.extra.uIntensity.value = this.params.intensity;
     this.extra.uHue.value = this.params.hue;
