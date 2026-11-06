@@ -28,14 +28,14 @@ export class FileAudioAnalysis {
   private readonly smoothed = new Float64Array(HALF_FFT);
   private readonly channels: Float32Array[];
   private readonly samples = new Float32Array(FFT_SIZE);
-  private smoothFactor = 0.76;
+  private smoothFactor = 0.2;
   constructor(readonly buffer: AudioBuffer) {
     this.channels = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
       buffer.getChannelData(i),
     );
   }
-  at(time: number, dt = 1 / 60) {
-    this.smoothFactor = Math.pow(0.76, dt * 60);
+  at(time: number, dt = 1 / 60, loop = false) {
+    this.smoothFactor = Math.pow(0.2, dt * 60);
     const end = Math.floor(time * this.buffer.sampleRate);
     const real = this.real;
     const imag = this.imaginary;
@@ -45,7 +45,11 @@ export class FileAudioAnalysis {
     const invChannels = 1 / numChannels;
     imag.fill(0);
     for (let i = 0; i < FFT_SIZE; i++) {
-      const index = end - FFT_SIZE + i;
+      let index = end - FFT_SIZE + i;
+      if (loop)
+        index =
+          ((index % this.buffer.length) + this.buffer.length) %
+          this.buffer.length;
       let value = 0;
       if (index >= 0) {
         for (let c = 0; c < numChannels; c++) value += channels[c][index] ?? 0;
