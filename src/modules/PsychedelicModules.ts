@@ -47,31 +47,63 @@ void main(){
 const chrome =
   header +
   `
-float surface(vec2 p){
+float surface(vec2 p,out float shockGlow,out float shockHue){
  float t=uTime;
- p+=vec2(sin(p.y*3.+t*.6),cos(p.x*2.8-t*.5))*.22*uWarp;
- float r=length(p);
- return sin(p.x*4.+sin(p.y*3.-t)*1.4+t*.7)*.16
-  +cos(p.y*5.-p.x*2.+t*.65)*.12
-  +sin(r*13.-t*2.4)*( .035+uBass*.065);
+ float warpDrive=(.16+uMid*.26+uBass*.18+uBeat*.12)*uWarp;
+ p+=vec2(sin(p.y*3.2+t*.75)+wave(fract(p.y*.22+.5))*.35,
+         cos(p.x*2.9-t*.65)+wave(fract(p.x*.22+.5))*.35)*warpDrive;
+ float r=length(p),a=atan(p.y,p.x);
+ float specA=fft(abs(a)/PI);
+ float specR=fft(clamp(r*.42,0.,1.));
+ float h=sin(p.x*(3.8+uMid*1.6)+sin(p.y*3.2-t*1.1)*(1.3+uBass*1.1)+t*.85)*(.12+uBass*.15)
+  +cos(p.y*(4.8+uTreble*2.)-p.x*2.2+t*.75)*(.09+uMid*.13)
+  +sin(r*(12.+uMid*5.)-t*2.8+cos(a*4.+t)*(.6+uBass*1.2))*(.03+uBass*.13+uSub*.09)
+  +(specA-.35)*(.05+uMid*.09)*sin(a*6.-t*1.8)
+  +specR*(.04+uBass*.08)*cos(r*16.-t*3.2);
+ shockGlow=0.;
+ shockHue=0.;
+ for(int i=0;i<12;i++){
+  vec4 sw=uShockwaves[i];
+  if(sw.y>.001){
+   float d=r-sw.x;
+   float env=exp(-d*d*55.)*sw.y;
+   h+=sin(d*42.-t*6.)*env*(.08+sw.w*.1);
+   float ring=glow(d,.018+sw.w*.016)*sw.y;
+   shockGlow+=ring;
+   shockHue+=ring*sw.z;
+  }
+ }
+ return h;
 }
 void main(){
  vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.4;
- float h=surface(p);
+ float r0=length(p);
+ p/=1.+uSub*.16+uBeat*.11+uBass*.08;
+ p=rot((uBass*.18+uBeat*.14-uMid*.1)*exp(-r0*.55)*uWarp)*p;
+ float shockGlow,shockHue;
+ float h=surface(p,shockGlow,shockHue);
  vec2 dp=vec2(dFdx(p.x),dFdy(p.y));
- vec2 grad=vec2(dFdx(h),dFdy(h))/max(abs(dp),vec2(1e-5));
+ float relief=1.+uBass*.85+uMid*.55+uBeat*.65;
+ vec2 grad=vec2(dFdx(h),dFdy(h))/max(abs(dp),vec2(1e-5))*relief;
  vec3 n=normalize(vec3(grad,1.));
  vec3 reflected=reflect(vec3(0.,0.,-1.),n);
- float bands=.5+.5*sin(reflected.x*8.+reflected.y*5.+h*9.-uTime*.4);
- float strip=pow(bands,18.);
- float spec=pow(max(dot(n,normalize(vec3(-.5,.7,1.))),0.),48.);
- float fresnel=pow(1.-n.z,2.);
- vec3 metal=mix(vec3(.025,.035,.055),vec3(.48,.55,.65),smoothstep(.25,.8,bands));
- vec3 iridescence=color(reflected.y*.35+reflected.x*.2+h*.8+uTime*.018);
- vec3 col=metal*(.3+bands*.5)+iridescence*(.15+fresnel*.9+strip*.85);
- col+=vec3(.8,.95,1.)*(spec*1.5+strip*.4)*(1.+uTreble*.65);
- col+=color(length(p)*.25)*glow(sin(length(p)*11.-uTime*2.),.055)*uBeat*.2;
- col*=uIntensity*(.65+uRms*.5)*(1.-smoothstep(.8,2.3,length(p))*.65);
+ float r=length(p),a=atan(p.y,p.x);
+ float specBand=fft(clamp(r*.38,0.,1.));
+ float bands=.5+.5*sin(reflected.x*(8.+uMid*5.)+reflected.y*(5.+uBass*4.)+h*(9.5+uBeat*6.)-uTime*.55);
+ float strip=pow(bands,max(6.,18.-uTreble*8.-uBeat*4.));
+ vec3 lightDir=normalize(vec3(-.5+.35*sin(uTime*.6+uBeat*1.2),.7-.25*cos(uTime*.45),1.-uBass*.25));
+ float spec=pow(max(dot(n,lightDir),0.),36.+uTreble*32.);
+ float fresnel=pow(1.-n.z,1.7);
+ vec3 metal=mix(vec3(.02,.03,.05),vec3(.52,.6,.72),smoothstep(.2,.82,bands));
+ float iridHue=reflected.y*.38+reflected.x*.24+h*(.85+uBass*.55)+uBeat*.22+specBand*.18+uTime*.022;
+ vec3 iridescence=color(iridHue);
+ vec3 col=metal*(.26+bands*(.48+uRms*.35))+iridescence*(.18+fresnel*(.85+uBass*.65+uMid*.45)+strip*(.8+uBeat*.75));
+ col+=vec3(.82,.96,1.)*(spec*(1.4+uBeat*.9)+strip*(.38+uTreble*.55))*(1.+uTreble*.85+specBand*.45);
+ float ripple=glow(sin(r*(11.+uBass*4.)-uTime*2.6-uBeat*1.8),.05+uBeat*.045);
+ col+=color(r*.25+uBeat*.15)*ripple*(uBeat*.55+uBass*.3+specBand*.25);
+ float swHue=shockGlow>1e-4?shockHue/shockGlow:0.;
+ col+=color(swHue+r*.18+h*.4)*shockGlow*1.35;
+ col*=uIntensity*(.54+uRms*.75+uBeat*.3)*(1.-smoothstep(.85,2.35,r0)*.65);
  gl_FragColor=vec4(col,1.);
 }`;
 
@@ -254,6 +286,9 @@ abstract class PsychedelicModule extends ShaderModule {
       this.uniforms.uMid.value = this.smoothMid;
       this.uniforms.uTreble.value = this.smoothTreble;
       this.phase += dt * this.params.speed * (1 + this.smoothBass * 0.35);
+    } else if (this.id === "acid-chrome") {
+      this.phase +=
+        dt * this.params.speed * (1 + audio.bass * 0.65 + audio.beat * 0.45);
     } else {
       this.phase += dt * this.params.speed;
     }
@@ -265,7 +300,12 @@ abstract class PsychedelicModule extends ShaderModule {
     this.extra.uTwist.value = this.params.twist ?? 1;
     this.extra.uContours.value = this.params.contours ?? 1.2;
     this.extra.uRelief.value = this.params.relief ?? 1;
-    if (this.id !== "pulse-reactor") return;
+    if (this.id !== "pulse-reactor" && this.id !== "acid-chrome") return;
+    if (dt === 0 && time === 0 && !audio.kick) {
+      for (let i = 0; i < this.shockwaves.length; i++)
+        this.shockwaves[i].set(0, 0, 0, 0);
+      this.nextShockwave = 0;
+    }
     for (let i = 0; i < this.shockwaves.length; i++) {
       const sw = this.shockwaves[i];
       sw.x += dt * (0.65 + sw.w * 0.55) * this.params.speed;
