@@ -1,7 +1,16 @@
 import * as T from "three";
+import { FileAudioAnalysis } from "./FileAudioAnalysis";
 import type { AudioFrameData } from "../core/types";
 const WIDTH = 512,
   HISTORY = 128;
+function follow(
+  current: number,
+  target: number,
+  attack: number,
+  release: number,
+) {
+  return current + (target - current) * (target > current ? attack : release);
+}
 export class AudioEngine {
   readonly bytes = new Uint8Array(WIDTH * 2);
   readonly history = new Uint8Array(WIDTH * HISTORY);
@@ -46,6 +55,7 @@ export class AudioEngine {
   private lastBeat = -1;
   private generation = 0;
   private buffer: AudioBuffer | null = null;
+  private fileAnalysis: FileAudioAnalysis | null = null;
   private startedAt = 0;
   private offset = 0;
   sourceName = "No audio";
@@ -105,6 +115,8 @@ export class AudioEngine {
     source.buffer = buffer;
     source.loop = true;
     source.connect(this.analyser!);
+    this.resetAnalysis();
+    this.fileAnalysis = new FileAudioAnalysis(buffer);
     this.buffer = buffer;
     this.offset = offset;
     this.startedAt = this.context!.currentTime;
@@ -125,7 +137,7 @@ export class AudioEngine {
       this.context = new AudioContext();
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 1024;
-      this.analyser.smoothingTimeConstant = 0.76;
+      this.analyser.smoothingTimeConstant = 0.2;
       this.output = this.context.createGain();
       this.output.gain.value = 0.65;
       this.analyser.connect(this.output);
@@ -136,9 +148,7 @@ export class AudioEngine {
   stop() {
     this.fileLoaded = false;
     this.generation++;
-    this.armed = true;
-    this.average = 0.1;
-    this.lastBeat = -1;
+    this.resetAnalysis();
     if (this.source) {
       if (this.source instanceof AudioBufferSourceNode) {
         try {
@@ -153,14 +163,42 @@ export class AudioEngine {
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.buffer = null;
+    this.fileAnalysis = null;
     this.offset = 0;
     this.startedAt = 0;
     this.sourceName = "No audio";
+  }
+  private resetAnalysis() {
+    this.armed = true;
+    this.average = 0.1;
+    this.lastBeat = -1;
+    const f = this.frame;
+    f.subBass = f.bass = f.lowMid = f.mid = f.highMid = f.treble = 0;
+    f.rms = f.centroid = f.beat = 0;
+    f.kick = false;
     this.bytes.fill(0);
     this.waveform.fill(128);
     this.history.fill(0);
     this.texture.needsUpdate = true;
     this.historyTexture.needsUpdate = true;
+  }
+  // Map the device's audible clock to the song, rather than the render-ahead clock.
+  private audiblePosition() {
+    const c = this.context!;
+    let clock = c.currentTime - (c.baseLatency || 0) - (c.outputLatency || 0);
+    const stamp = c.getOutputTimestamp?.();
+    if (
+      stamp &&
+      (stamp.contextTime ?? 0) > 0 &&
+      (stamp.performanceTime ?? 0) > 0
+    ) {
+      clock =
+        stamp.contextTime! +
+        (performance.now() - stamp.performanceTime!) / 1000;
+    }
+    clock = Math.min(c.currentTime, clock);
+    if (clock < this.startedAt) return null;
+    return (this.offset + clock - this.startedAt) % this.duration;
   }
   async file(file: File) {
     await this.ready();
@@ -179,7 +217,11 @@ export class AudioEngine {
     await this.ready();
     this.stop();
     const token = this.generation;
-    if (system && (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== "function")) {
+    if (
+      system &&
+      (!navigator.mediaDevices ||
+        typeof navigator.mediaDevices.getDisplayMedia !== "function")
+    ) {
       throw new Error(
         "System audio sharing is not supported on this device or mobile browser. Use Microphone or Open Audio.",
       );
@@ -261,6 +303,21 @@ export class AudioEngine {
     } else if (this.context?.state === "suspended") {
       this.spectrum.fill(0);
       this.waveform.fill(128);
+    } else if (this.fileAnalysis && this.context && this.source) {
+      const position = this.audiblePosition();
+      if (position === null) {
+        this.spectrum.fill(0);
+        this.waveform.fill(128);
+      } else {
+        // Center the FFT on the audible sample; decoded files allow lookahead.
+        this.fileAnalysis.at(
+          position + 512 / this.context.sampleRate,
+          dt,
+          true,
+        );
+        this.fileAnalysis.getByteFrequencyData(this.spectrum);
+        this.fileAnalysis.getByteTimeDomainData(this.waveform);
+      }
     } else {
       this.analyser?.getByteFrequencyData(this.spectrum);
       this.analyser?.getByteTimeDomainData(this.waveform);
@@ -271,7 +328,8 @@ export class AudioEngine {
     this.texture.needsUpdate = true;
     const hz =
       (offline?.buffer.sampleRate ?? this.context?.sampleRate ?? 48000) / 1024;
-    const smoothing = 1 - Math.exp(-dt * 12);
+    const attack = 1 - Math.exp(-dt * 60);
+    const release = 1 - Math.exp(-dt * 12);
     let energy = 0,
       weighted = 0,
       rms = 0;
@@ -282,14 +340,14 @@ export class AudioEngine {
       const wave = (this.waveform[i] - 128) / 128;
       rms += wave * wave;
     }
-    f.rms += (Math.sqrt(rms / WIDTH) - f.rms) * smoothing;
+    f.rms = follow(f.rms, Math.sqrt(rms / WIDTH), attack, release);
     f.centroid = energy > 0 ? weighted / (energy * (WIDTH - 1)) : 0;
-    f.subBass += (this.band(20, 60, hz) - f.subBass) * smoothing;
-    f.bass += (this.band(60, 250, hz) - f.bass) * smoothing;
-    f.lowMid += (this.band(250, 500, hz) - f.lowMid) * smoothing;
-    f.mid += (this.band(500, 2000, hz) - f.mid) * smoothing;
-    f.highMid += (this.band(2000, 6000, hz) - f.highMid) * smoothing;
-    f.treble += (this.band(6000, 20000, hz) - f.treble) * smoothing;
+    f.subBass = follow(f.subBass, this.band(20, 60, hz), attack, release);
+    f.bass = follow(f.bass, this.band(60, 250, hz), attack, release);
+    f.lowMid = follow(f.lowMid, this.band(250, 500, hz), attack, release);
+    f.mid = follow(f.mid, this.band(500, 2000, hz), attack, release);
+    f.highMid = follow(f.highMid, this.band(2000, 6000, hz), attack, release);
+    f.treble = follow(f.treble, this.band(6000, 20000, hz), attack, release);
     const low = this.band(20, 180, hz);
     f.kick =
       this.armed &&

@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "test:audio": "node --test tests/audio-sync.node.mjs",
     "format": "prettier --write src tests playwright.config.ts index.html"
   },
   "repository": {
