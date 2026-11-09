@@ -97,7 +97,7 @@ export class ViszSuiteUI {
     const search = document.querySelector<HTMLInputElement>("#scene-search")!;
     let category = "All";
     const categoryFor = (id: string, index: number) =>
-      id === "hubble-nebula"
+      id === "hubble-nebula" || id === "human-heart"
         ? "Natural"
         : index >= 19 && index <= 23
           ? "Classic"

@@ -1,4 +1,5 @@
 import { HubbleNebulaModule } from "../modules/HubbleNebulaModule";
+import { HumanHeartModule } from "../modules/HumanHeartModule";
 import { RecursiveChromeModule } from "../modules/RecursiveChromeModule";
 import { EvolvingAtmosphereModule } from "../modules/EvolvingAtmosphereModule";
 import * as T from "three";
@@ -74,6 +75,7 @@ export class VisualizerHost {
     new WaterfallModule(),
     new StarfieldModule(),
     new HubbleNebulaModule(),
+    new HumanHeartModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {
