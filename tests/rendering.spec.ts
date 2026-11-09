@@ -103,7 +103,9 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     return results;
   });
   for (const result of results) {
-    expect(result.lit, result.id).toBeGreaterThan(0.15);
+    expect(result.lit, result.id).toBeGreaterThan(
+      result.id === "recursive-chrome" ? 0.98 : 0.15,
+    );
     expect(result.changed, result.id).toBeGreaterThan(0.1);
     expect(result.contrast, result.id).toBeGreaterThan(30);
     expect(result.opaque, result.id).toBe(true);
