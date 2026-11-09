@@ -1,5 +1,5 @@
 import * as T from "three";
-import { FileAudioAnalysis } from "./FileAudioAnalysis";
+import { FileAudioAnalysis, songTempo } from "./FileAudioAnalysis";
 import type { AudioFrameData } from "../core/types";
 const WIDTH = 512,
   HISTORY = 128;
@@ -58,6 +58,7 @@ export class AudioEngine {
   private armed = true;
   private average = 0.1;
   private lastBeat = -1;
+  private livePeriod = 0;
   private generation = 0;
   private buffer: AudioBuffer | null = null;
   private fileAnalysis: FileAudioAnalysis | null = null;
@@ -197,10 +198,12 @@ export class AudioEngine {
     this.armed = true;
     this.average = 0.1;
     this.lastBeat = -1;
+    this.livePeriod = 0;
     const f = this.frame;
     f.subBass = f.bass = f.lowMid = f.mid = f.highMid = f.treble = 0;
     f.rms = f.centroid = f.beat = 0;
     f.kick = false;
+    f.bpm = f.beatPhase = undefined;
     this.bytes.fill(0);
     this.waveform.fill(128);
     this.history.fill(0);
@@ -363,6 +366,7 @@ export class AudioEngine {
   ) {
     if (time < this.lastBeat) {
       this.lastBeat = -1;
+      this.livePeriod = 0;
       this.armed = true;
     }
     const f = this.frame;
@@ -423,12 +427,39 @@ export class AudioEngine {
       low > Math.max(0.15, this.average * 1.35) &&
       time - this.lastBeat > 0.24;
     if (f.kick) {
+      const interval = time - this.lastBeat;
+      if (this.lastBeat >= 0 && interval >= 1 / 3 && interval <= 1) {
+        this.livePeriod = this.livePeriod
+          ? this.livePeriod * 0.8 + interval * 0.2
+          : interval;
+      }
       this.armed = false;
       this.lastBeat = time;
       f.beat = 1;
     } else f.beat *= Math.exp(-dt * 7);
     if (low < Math.max(0.12, this.average * 1.1)) this.armed = true;
     this.average += (low - this.average) * (1 - Math.exp(-dt * 2));
+    const buffer = offline?.buffer ?? this.buffer;
+    const tempo = buffer ? songTempo(buffer) : null;
+    const position = offline
+      ? time
+      : this.context && this.source && buffer
+        ? this.audiblePosition()
+        : null;
+    f.bpm = f.beatPhase = undefined;
+    if (tempo && position !== null) {
+      f.bpm = tempo.bpm;
+      f.beatPhase =
+        (((((position - tempo.offset) * tempo.bpm) / 60) % 1) + 1) % 1;
+    } else if (
+      !buffer &&
+      this.source &&
+      this.livePeriod &&
+      time - this.lastBeat < 3
+    ) {
+      f.bpm = 60 / this.livePeriod;
+      f.beatPhase = ((time - this.lastBeat) / this.livePeriod) % 1;
+    }
     return f;
   }
   private band(lo: number, hi: number, hz: number) {

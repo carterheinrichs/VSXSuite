@@ -95,3 +95,72 @@ export class FileAudioAnalysis {
       data[i] = Math.max(0, Math.min(255, 128 * (1 + this.samples[i])));
   }
 }
+
+export interface SongTempo {
+  bpm: number;
+  offset: number;
+}
+const tempoCache = new WeakMap<AudioBuffer, SongTempo | null>();
+
+// Estimate a stable song grid once, independently of rendering and seeking.
+export function songTempo(buffer: AudioBuffer): SongTempo | null {
+  if (tempoCache.has(buffer)) return tempoCache.get(buffer)!;
+  const rate = 200;
+  const hop = Math.max(1, Math.round(buffer.sampleRate / rate));
+  const count = Math.min(Math.floor(buffer.length / hop), rate * 90);
+  const onset = new Float64Array(count);
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
+    buffer.getChannelData(i),
+  );
+  const stride = Math.max(1, Math.floor(buffer.sampleRate / 4000));
+  let previous = 0;
+  for (let i = 0; i < count; i++) {
+    let energy = 0,
+      samples = 0;
+    for (let j = i * hop; j < (i + 1) * hop; j += stride) {
+      for (const channel of channels) {
+        energy += channel[j] ** 2;
+        samples++;
+      }
+    }
+    const level = Math.sqrt(energy / Math.max(samples, 1));
+    onset[i] = Math.max(0, level - previous);
+    previous = level;
+  }
+  let best = 0,
+    period = 0;
+  // Prefer the fundamental over its slower multiples when scores are similar.
+  for (
+    let lag = Math.ceil((rate * 60) / 180);
+    lag <= Math.floor((rate * 60) / 60);
+    lag++
+  ) {
+    let product = 0,
+      a = 0,
+      b = 0;
+    for (let i = lag; i < count; i++) {
+      product += onset[i] * onset[i - lag];
+      a += onset[i] ** 2;
+      b += onset[i - lag] ** 2;
+    }
+    const score = product / Math.max(Math.sqrt(a * b), 1e-12);
+    if (score > best + 0.02) {
+      best = score;
+      period = lag;
+    }
+  }
+  let result: SongTempo | null = null;
+  if (best > 0.15 && count >= period * 4) {
+    const folded = new Float64Array(period);
+    for (let i = 0; i < count; i++) folded[i % period] += onset[i];
+    let peak = 0;
+    for (let i = 1; i < period; i++) if (folded[i] > folded[peak]) peak = i;
+    const secondsPerBin = hop / buffer.sampleRate;
+    result = {
+      bpm: 60 / (period * secondsPerBin),
+      offset: peak * secondsPerBin,
+    };
+  }
+  tempoCache.set(buffer, result);
+  return result;
+}

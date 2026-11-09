@@ -10,6 +10,9 @@ export interface AudioFrameData {
   centroid: number;
   beat: number;
   kick: boolean;
+  /** Detected tempo and song-aligned cycle; absent when tempo is unavailable. */
+  bpm?: number;
+  beatPhase?: number;
   uAudioTexture: THREE.DataTexture;
   uAudioHistoryTexture: THREE.DataTexture;
 }
@@ -25,6 +28,12 @@ export interface IVisualModule {
     readBuffer: THREE.WebGLRenderTarget,
   ): void;
   resize(width: number, height: number): void;
+  prepare?(renderer: THREE.WebGLRenderer): Promise<void>;
+  /** Optional asynchronous rendering path for interactive playback. */
+  renderRealtime?(
+    renderer: THREE.WebGLRenderer,
+    output: THREE.WebGLRenderTarget,
+  ): void;
   reset?(): void;
   dispose(): void;
 }

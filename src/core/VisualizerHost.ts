@@ -1,4 +1,5 @@
 import { HubbleNebulaModule } from "../modules/HubbleNebulaModule";
+import { HumanHeartModule } from "../modules/HumanHeartModule";
 import { RecursiveChromeModule } from "../modules/RecursiveChromeModule";
 import { EvolvingAtmosphereModule } from "../modules/EvolvingAtmosphereModule";
 import * as T from "three";
@@ -74,6 +75,7 @@ export class VisualizerHost {
     new WaterfallModule(),
     new StarfieldModule(),
     new HubbleNebulaModule(),
+    new HumanHeartModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {
@@ -88,6 +90,8 @@ export class VisualizerHost {
   private qualityTime = 0;
   private qualityFrames = 0;
   private recoveryTime = 0;
+  private recoveryDelay = 30;
+  private selectionVersion = 0;
   private readonly pixelBudget: number;
   private a: T.WebGLRenderTarget;
   private b: T.WebGLRenderTarget;
@@ -102,6 +106,15 @@ export class VisualizerHost {
   renderPath: RenderPath = "neon_post";
   onStats: (() => void) | null = null;
   onError: ((message: string) => void) | null = null;
+  onPreparationChange: (() => void) | null = null;
+  get preparingScene() {
+    return this.canvas.dataset.preparingScene;
+  }
+  private setPreparingScene(id?: string) {
+    if (id) this.canvas.dataset.preparingScene = id;
+    else delete this.canvas.dataset.preparingScene;
+    this.onPreparationChange?.();
+  }
   get exporting() {
     return this.mode === "exporting";
   }
@@ -244,10 +257,32 @@ export class VisualizerHost {
     this.neon.clear(this.renderer);
     this.renderer.setRenderTarget(null);
   }
-  select(id: string) {
-    this.settings.scene = id;
-    this.resetAdaptation();
-    this.clear();
+  async select(id: string) {
+    const active = this.modules.find((module) => module.id === id);
+    if (!active || this.mode === "disposed") return;
+    const version = ++this.selectionVersion;
+    this.setPreparingScene(id);
+    const isCurrent = () =>
+      version === this.selectionVersion && this.mode !== "disposed";
+    const commit = () => {
+      if (!isCurrent()) return;
+      this.settings.scene = id;
+      this.setPreparingScene();
+      this.resetAdaptation();
+      this.recoveryDelay = 30;
+      // Keep the displayed frame until the new scene draws. Clearing here can
+      // expose a black canvas while its first frame is being prepared.
+    };
+    if (active.prepare) {
+      try {
+        await active.prepare(this.renderer);
+        commit();
+      } catch (error: unknown) {
+        if (!isCurrent()) return;
+        this.setPreparingScene();
+        this.onError?.(`Unable to prepare visualizer: ${String(error)}`);
+      }
+    } else commit();
   }
   private adapt(frameDelta: number) {
     if (this.exporting) return;
@@ -258,12 +293,15 @@ export class VisualizerHost {
     const fps = this.qualityFrames / this.qualityTime;
     this.recoveryTime = fps > 57 ? this.recoveryTime + this.qualityTime : 0;
     let scale = this.adaptiveScale;
-    if (fps < 48)
+    if (fps < 48) {
       scale = Math.max(
         this.stats.softwareGPU ? 0.55 : 0.65,
         scale * Math.max(0.75, Math.sqrt(fps / 55)),
       );
-    else if (this.recoveryTime > 8) {
+      // Back off repeated failed quality probes on expensive scenes.
+      if (scale < this.adaptiveScale)
+        this.recoveryDelay = Math.min(120, this.recoveryDelay * 1.5);
+    } else if (this.recoveryTime > this.recoveryDelay) {
       scale = Math.min(1, scale * 1.08);
       this.recoveryTime = 0;
     }
@@ -283,6 +321,9 @@ export class VisualizerHost {
     this.previous = now;
     this.elapsed += frameDelta;
     const audio = this.audio.update(this.elapsed, dt);
+    // Canvas size assignments clear its drawing buffer. Resize before drawing
+    // so the browser never presents the cleared buffer between frames.
+    this.adapt(frameDelta);
     this.renderFrame(audio, this.elapsed, dt);
     this.frames++;
     this.statsTime += frameDelta;
@@ -292,7 +333,6 @@ export class VisualizerHost {
       this.statsTime = 0;
       this.onStats?.();
     }
-    this.adapt(frameDelta);
     if (this.mode === "realtime") {
       this.frameId = requestAnimationFrame(this.tick);
     }
@@ -313,7 +353,9 @@ export class VisualizerHost {
     let read: T.WebGLRenderTarget;
     if (active.id === "neon") read = this.neon.renderFeedback(this.renderer);
     else {
-      active.render(this.renderer, this.a, this.b);
+      if (this.mode === "realtime" && active.renderRealtime) {
+        active.renderRealtime(this.renderer, this.a);
+      } else active.render(this.renderer, this.a, this.b);
       read = this.a;
     }
     let overlay: T.WebGLRenderTarget | null = null;
@@ -351,6 +393,7 @@ export class VisualizerHost {
   }
   dispose() {
     this.syncMode("disposed");
+    this.setPreparingScene();
     window.removeEventListener("resize", this.resize);
     document.removeEventListener("visibilitychange", this.visibility);
     this.canvas.removeEventListener("webglcontextlost", this.contextLost);

@@ -6,6 +6,7 @@ import { transformWithOxc } from "vite";
 // Compile the audio modules in memory so timing tests need no browser or audio device.
 async function moduleUrl(path, replacements = {}) {
   let source = await readFile(new URL(path, import.meta.url), "utf8");
+  source = source.replace(/\r\n/g, "\n");
   for (const [from, to] of Object.entries(replacements))
     source = source.replace(from, to);
   const { code: outputText } = await transformWithOxc(source, path);
@@ -278,5 +279,48 @@ test("PsychedelicModule and ConsoleLightModule reset phase and shockwaves determ
     reactor.extra.uShockwaves.value.every((sw) => sw.y === 0),
     "Shockwave ring buffer clears on rewind to t=0",
   );
+  engine.dispose();
+});
+
+const { songTempo } = await import(analysisUrl);
+function clickTrack(bpm, offset = 0.2) {
+  const sampleRate = 12000;
+  const samples = new Float32Array(sampleRate * 12);
+  for (let beat = offset; beat < 12; beat += 60 / bpm) {
+    const start = Math.round(beat * sampleRate);
+    for (let i = 0; i < 240 && start + i < samples.length; i++)
+      samples[start + i] = Math.sin(i * 0.4) * Math.exp(-i / 50);
+  }
+  return {
+    length: samples.length,
+    duration: 12,
+    sampleRate,
+    numberOfChannels: 1,
+    getChannelData: () => samples,
+  };
+}
+test("song tempo follows different beat rates and rejects silence", () => {
+  for (const bpm of [90, 120, 150]) {
+    const tempo = songTempo(clickTrack(bpm));
+    assert.ok(tempo, "regular beat should establish a tempo");
+    assert.ok(Math.abs(tempo.bpm - bpm) < 1, `${bpm}: got ${tempo.bpm}`);
+    assert.ok(Math.abs(tempo.offset - 0.2) < 0.02);
+  }
+  assert.equal(songTempo(buffer()), null);
+});
+test("song phase is deterministic across frame rates and rewind", () => {
+  const song = clickTrack(120);
+  const input = {
+    buffer: song,
+    getByteFrequencyData: (a) => a.fill(0),
+    getByteTimeDomainData: (a) => a.fill(128),
+  };
+  const engine = new AudioEngine();
+  assert.equal(engine.update(0, 0).beatPhase, undefined);
+  const first = engine.update(2.325, 1 / 30, input).beatPhase;
+  assert.ok(Math.abs(first - 0.25) < 0.02);
+  assert.ok(Math.abs(engine.frame.bpm - 120) < 1);
+  engine.update(8, 1 / 60, input);
+  assert.equal(engine.update(2.325, 1 / 120, input).beatPhase, first);
   engine.dispose();
 });

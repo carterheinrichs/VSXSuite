@@ -59,8 +59,11 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Lissajous scope",
     "Waterfall spectrogram",
     "Classic starfield",
+    "Hubble Nebula",
+    "Human Heart",
   ]);
   for (const [label, file] of [
+    ["Human Heart", "human-heart"],
     ["Evolving Atmosphere", "evolving-atmosphere"],
     ["Aurora ribbons", "aurora"],
     ["Prismatic drift", "prismatic"],
