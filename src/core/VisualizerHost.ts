@@ -353,7 +353,9 @@ export class VisualizerHost {
     let read: T.WebGLRenderTarget;
     if (active.id === "neon") read = this.neon.renderFeedback(this.renderer);
     else {
-      active.render(this.renderer, this.a, this.b);
+      if (this.mode === "realtime" && active.renderRealtime) {
+        active.renderRealtime(this.renderer, this.a);
+      } else active.render(this.renderer, this.a, this.b);
       read = this.a;
     }
     let overlay: T.WebGLRenderTarget | null = null;

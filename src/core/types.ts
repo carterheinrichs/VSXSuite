@@ -29,6 +29,11 @@ export interface IVisualModule {
   ): void;
   resize(width: number, height: number): void;
   prepare?(renderer: THREE.WebGLRenderer): Promise<void>;
+  /** Optional asynchronous rendering path for interactive playback. */
+  renderRealtime?(
+    renderer: THREE.WebGLRenderer,
+    output: THREE.WebGLRenderTarget,
+  ): void;
   reset?(): void;
   dispose(): void;
 }
