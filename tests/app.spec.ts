@@ -113,6 +113,24 @@ for (const revision of [1, 2]) {
   });
 }
 
+test("about page displays third-party notices at the bottom", async ({
+  page,
+}) => {
+  await page.goto("/about.html");
+  const notices = page.locator("#third-party-notices");
+  await expect(
+    notices.getByRole("heading", { name: "Third-Party Notices" }),
+  ).toBeVisible();
+  await expect(notices.getByRole("link", { name: "Three.js" })).toBeVisible();
+  await expect(notices.getByRole("link", { name: "Tweakpane" })).toBeVisible();
+  await expect(notices.getByRole("link", { name: "Mediabunny" })).toBeVisible();
+  await expect(
+    notices.getByRole("link", { name: "webgl-noise" }),
+  ).toBeVisible();
+  await expect(notices).toContainText("MIT License Notice");
+  await expect(notices).toContainText("Mozilla Public License 2.0");
+});
+
 test("music catalog dynamically lists Name - Author without filetype, shows runtime and plays tracks", async ({
   page,
 }) => {
