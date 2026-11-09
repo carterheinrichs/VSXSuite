@@ -8,8 +8,9 @@ import { ShaderModule } from "./ShaderModule";
 const fragment =
   common +
   `
-uniform float uIntensity,uHue,uReactivity,uVessels,uTurn;
-float contraction;
+uniform float uIntensity,uHue,uReactivity,uVessels,uTurn,uCutaway;
+float contraction,valveOpen;
+float tissue(vec3 p){return sin(p.x*37.+sin(p.y*29.))*sin(p.z*41.+p.y*17.)*.5+sin(p.x*83.+p.z*31.)*sin(p.y*71.)*.25;}
 float ellipsoid(vec3 p,vec3 r){return (length(p/r)-1.)*min(r.x,min(r.y,r.z));}
 float blend(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
 float tube(vec3 p,vec3 a,vec3 b,float r){vec3 d=b-a;return length(p-a-d*clamp(dot(p-a,d)/dot(d,d),0.,1.))-r;}
@@ -32,7 +33,43 @@ float organ(vec3 p){
  for(int i=0;i<3;i++){float x=float(i);d=blend(d,tube(p,vec3(.12+x*.10,.87,-.06),vec3(.08+x*.16,1.16-x*.035,-.08),.045),.045);}
  return d;
 }
-float map(vec3 p){return organ(local(p));}
+float cavities(vec3 p){
+ return min(ellipsoid(p-vec3(.22,-.15,.27),vec3(.235,.49,.40)),ellipsoid(p-vec3(-.25,-.03,.28),vec3(.205,.37,.38)));
+}
+// Thin scalloped leaflets fold back toward their annulus during filling.
+// The two visible atrioventricular valves have two and three cusps.
+float valve(vec3 p,vec3 center,float cusps){
+ vec3 q=p-center;q.yz=rot(.38)*q.yz;
+ float radius=length(q.xy),angle=atan(q.y,q.x);
+ float aperture=.012+valveOpen*.105;
+ float scallop=.012*cos(angle*cusps);
+ float leaflet=max(radius-.153,aperture+scallop-radius);
+ float depth=.025+valveOpen*.10*(1.-clamp(radius/.16,0.,1.));
+ float membrane=max(leaflet,abs(q.z-depth)-.009);
+ float ring=length(vec2(radius-.157,q.z-.025))-.014;
+ return min(membrane,ring);
+}
+float valves(vec3 p){
+ float d=min(valve(p,vec3(.22,.14,.16),2.),valve(p,vec3(-.25,.18,.17),3.));
+ // Chordae anchor the leaflet edges to papillary muscles in each ventricle.
+ for(int side=0;side<2;side++){
+  float x=side==0 ? .22 : -.25;
+  for(int i=0;i<3;i++){
+   float a=float(i)*2.094;
+   vec3 edge=vec3(x+cos(a)*(.055+valveOpen*.07),.15+sin(a)*.10,.19);
+   vec3 anchor=vec3(x+cos(a)*.075,-.29,.02);
+   d=min(d,tube(p,edge,anchor,.004));
+  }
+ }
+ return d;
+}
+float muscle(vec3 p){
+ float d=organ(p);
+ if(uCutaway>.5)d=max(d,-cavities(p));
+ return d;
+}
+float anatomy(vec3 p){float d=muscle(p);if(uCutaway>.5)d=min(d,valves(p));return d;}
+float map(vec3 p){return anatomy(local(p));}
 float vessels(vec3 p){
  float d=10.;
  // Descending coronary artery and alternating lateral branches on the front.
@@ -51,31 +88,41 @@ float vessels(vec3 p){
 void main(){
  float phase=fract(uTime*1.12);
  float rest=exp(-pow((phase-.12)/.065,2.))+.4*exp(-pow((phase-.29)/.09,2.));
- contraction=.22*rest+uReactivity*(.55*uBeat+.23*uBass);
+ contraction=clamp(.55*rest+uReactivity*(.42*uBeat+.18*uBass),0.,1.);
+ valveOpen=1.-smoothstep(.12,.65,contraction);
  vec2 uv=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
  // Fit the whole sculpture in portrait as well as landscape.
  uv*=max(1.,uResolution.y/uResolution.x);
  vec3 ro=vec3(0.,.13,3.8),rd=normalize(vec3(uv*2.5,-3.8));
- vec3 col=vec3(.003,.008,.016)+vec3(.035,.009,.022)*exp(-dot(uv,uv)*5.);
+ // Soft, out-of-focus red tissue enclosing the scene, with deep edge shadows.
+ float wall=sin(uv.x*8.+sin(uv.y*6.)*1.5)*sin(uv.y*9.-uv.x*3.);
+ float vignette=exp(-dot(uv*vec2(.9,1.1),uv*vec2(.9,1.1))*2.5);
+ vec3 col=vec3(.025,.0015,.003)+vec3(.105,.008,.013)*vignette*(.75+.25*wall);
  float travel=0.;vec3 p=ro;bool hit=false;
- for(int i=0;i<88;i++){p=ro+rd*travel;float d=map(p);if(d<.0018){hit=true;break;}travel+=max(d*.78,.002);if(travel>6.)break;}
+ for(int i=0;i<112;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.72,.001);if(travel>6.)break;}
  if(hit){
   vec2 e=vec2(.002,0.);vec3 n=normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));
   vec3 q=local(p);vec3 vesselPoint=q;vesselPoint.z=.35;float vein=vessels(vesselPoint);
   float lines=exp(-max(vein,0.)*160.)*uVessels;
-  float fiber=sin(q.y*95.+sin(q.x*35.)*2.+q.z*26.)*.5+.5;
-  vec3 red=mix(vec3(.39,.018,.045),vec3(.66,.07,.105),fiber*.35+q.y*.12+.15);
+  float grain=tissue(q);
+  float interior=uCutaway>.5 ? 1.-smoothstep(.003,.025,abs(cavities(q))) : 0.;
+  float isValve=uCutaway>.5 && valves(q)<.005 ? 1. : 0.;
+  vec3 red=mix(vec3(.19,.013,.022),vec3(.38,.052,.059),.45+grain*.22);
+  red=mix(red,vec3(.26,.027,.035)*(1.+grain*.18),interior);
+  vec2 leaflet=q.xy-vec2(q.x>0. ? .22 : -.25,q.x>0. ? .14 : .18);
+  float seam=pow(.5+.5*cos(atan(leaflet.y,leaflet.x)*(q.x>0. ? 2. : 3.)),20.);
+  red=mix(red,vec3(.48,.30,.21)*(1.+grain*.12-seam*.24),isValve);
   red=mix(red,red.gbr,uHue);
   vec3 light=normalize(vec3(-.7,.9,1.5));
   float diffuse=max(dot(n,light),0.),rim=pow(1.-max(dot(n,-rd),0.),3.);
-  float spec=pow(max(dot(n,normalize(light-rd)),0.),48.);
+  float spec=pow(max(dot(n,normalize(light-rd)),0.),65.);
   float pulse=pow(.5+.5*cos(q.y*13.+uTime*7.),12.)*(.25+uMid*uReactivity*2.);
-  vec3 blood=mix(vec3(1.5,.09,.025),vec3(.04,.65,1.3),1.-smoothstep(-.35,-.1,q.x));
-  col=red*(.24+diffuse*1.25)+vec3(.65,.79,1.)*spec*.18;
-  col+=vec3(.12,.30,.44)*rim*.7+red*pow(max(dot(-n,light),0.),2.)*.4;
-  col+=blood*lines*(.35+pulse+contraction*.9);
-  float sparks=pow(max(0.,sin(q.y*120.+q.x*85.-uTime*19.)),28.);
-  col+=vec3(.45,.8,1.)*lines*sparks*uTreble*uReactivity;
+  float occlusion=clamp(map(p+n*.065)/.065,.25,1.);
+  col=red*(.20+diffuse*1.45)*occlusion+vec3(.8,.56,.43)*spec*.27;
+  col+=vec3(.23,.035,.027)*rim*.25+red*pow(max(dot(-n,light),0.),2.)*.28;
+  // Coronary vessels remain dark blood red rather than emissive neon.
+  col=mix(col,col*vec3(.48,.24,.28),clamp(lines,0.,1.)*(1.-interior)*(1.-isValve)*.7);
+  col+=red*pulse*.045*uReactivity*(1.-isValve);
  }
  col*=uIntensity;
  gl_FragColor=vec4(max(col,vec3(0.)),1.);
@@ -91,6 +138,7 @@ export class HumanHeartModule extends ShaderModule {
     reactivity: 1,
     vessels: 1,
     turn: 1,
+    cutaway: true,
   };
   private readonly extra = {
     uIntensity: { value: 1.1 },
@@ -98,6 +146,7 @@ export class HumanHeartModule extends ShaderModule {
     uReactivity: { value: 1 },
     uVessels: { value: 1 },
     uTurn: { value: 1 },
+    uCutaway: { value: 1 },
   };
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
     this.pass = new FullscreenPass(fragment, {
@@ -114,5 +163,6 @@ export class HumanHeartModule extends ShaderModule {
     this.extra.uReactivity.value = this.params.reactivity;
     this.extra.uVessels.value = this.params.vessels;
     this.extra.uTurn.value = this.params.turn;
+    this.extra.uCutaway.value = this.params.cutaway ? 1 : 0;
   }
 }
