@@ -96,17 +96,19 @@ export class ViszSuiteUI {
     const count = document.querySelector<HTMLElement>("#scene-count")!;
     const search = document.querySelector<HTMLInputElement>("#scene-search")!;
     let category = "All";
-    const categoryFor = (index: number) =>
-      index >= 19 && index <= 23
-        ? "Classic"
-        : [3, 4, 5, 9, 10, 13, 14].includes(index)
-          ? "Geometric"
-          : "Atmospheric";
+    const categoryFor = (id: string, index: number) =>
+      id === "hubble-nebula"
+        ? "Natural"
+        : index >= 19 && index <= 23
+          ? "Classic"
+          : [3, 4, 5, 9, 10, 13, 14].includes(index)
+            ? "Geometric"
+            : "Atmospheric";
     const renderLibrary = () => {
       grid.replaceChildren();
       host.modules.forEach((module, index) => {
         if (
-          (category !== "All" && categoryFor(index) !== category) ||
+          (category !== "All" && categoryFor(module.id, index) !== category) ||
           !module.name.toLowerCase().includes(search.value.toLowerCase())
         )
           return;
@@ -127,7 +129,7 @@ export class ViszSuiteUI {
         const name = document.createElement("strong");
         name.textContent = module.name;
         const tag = document.createElement("small");
-        tag.textContent = categoryFor(index);
+        tag.textContent = categoryFor(module.id, index);
         button.append(art, name, tag);
         button.addEventListener(
           "click",
