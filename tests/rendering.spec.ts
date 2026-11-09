@@ -16,6 +16,9 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     const modules = await import("/src/modules/PsychedelicModules.ts");
     // @ts-expect-error Vite serves source modules to the integration browser.
     const { AudioEngine } = await import("/src/audio/AudioEngine.ts");
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const { RecursiveChromeModule } =
+      await import("/src/modules/RecursiveChromeModule.ts");
     const renderer = new T.WebGLRenderer();
     const audio = new AudioEngine();
     const frame = audio.update(0, 0);
@@ -26,6 +29,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       modules.PulseReactorModule,
       modules.PrismaticTunnelModule,
       modules.TopographicContoursModule,
+      RecursiveChromeModule,
     ]) {
       const scene = new Module();
       scene.init(renderer, 128, 80);
@@ -104,7 +108,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     expect(result.contrast, result.id).toBeGreaterThan(30);
     expect(result.opaque, result.id).toBe(true);
   }
-  expect(new Set(results.map((r) => r.signature)).size).toBe(10);
+  expect(new Set(results.map((r) => r.signature)).size).toBe(12);
   expect(errors).toEqual([]);
 });
 

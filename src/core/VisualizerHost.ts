@@ -1,3 +1,4 @@
+import { RecursiveChromeModule } from "../modules/RecursiveChromeModule";
 import { EvolvingAtmosphereModule } from "../modules/EvolvingAtmosphereModule";
 import * as T from "three";
 import { AudioEngine } from "../audio/AudioEngine";
@@ -63,6 +64,7 @@ export class VisualizerHost {
     new PulseReactorModule(),
     new PrismaticTunnelModule(),
     new TopographicContoursModule(),
+    new RecursiveChromeModule(),
     new RealisticFerrofluidModule(),
     new EvolvingAtmosphereModule(),
     new ClassicSpectrumModule(),
