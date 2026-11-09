@@ -127,6 +127,8 @@ test("about page displays third-party notices at the bottom", async ({
   await expect(
     notices.getByRole("link", { name: "webgl-noise" }),
   ).toBeVisible();
+  await expect(notices).toContainText("Bundled Music Tracks");
+  await expect(notices).toContainText("Excluded from MIT License");
   await expect(notices).toContainText("MIT License Notice");
   await expect(notices).toContainText("Mozilla Public License 2.0");
 });
