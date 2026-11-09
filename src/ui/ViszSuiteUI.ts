@@ -97,7 +97,7 @@ export class ViszSuiteUI {
     const search = document.querySelector<HTMLInputElement>("#scene-search")!;
     let category = "All";
     const categoryFor = (index: number) =>
-      index >= 18
+      index >= 19
         ? "Classic"
         : [3, 4, 5, 9, 10, 13, 14].includes(index)
           ? "Geometric"

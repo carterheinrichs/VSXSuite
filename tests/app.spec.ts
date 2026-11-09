@@ -4,8 +4,8 @@ for (const revision of [1, 2]) {
     page,
   }) => {
     await page.goto(`/?ui=${revision}`);
-    await expect(page.locator("[data-scene]")).toHaveCount(23);
-    await expect(page.locator("#scene-count")).toHaveText("23");
+    await expect(page.locator("[data-scene]")).toHaveCount(24);
+    await expect(page.locator("#scene-count")).toHaveText("24");
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
