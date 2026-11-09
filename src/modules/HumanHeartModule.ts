@@ -127,7 +127,15 @@ void main(){
  float vignette=exp(-dot(uv*vec2(.9,1.1),uv*vec2(.9,1.1))*2.5);
  vec3 col=vec3(.009,.0006,.001)+vec3(.068,.004,.006)*vignette*(.55+.45*wall);
  float travel=0.;vec3 p=ro;bool hit=false;
- for(int i=0;i<112;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.72,.001);if(travel>6.)break;}
+ // All anatomy fits inside a radius-1.5 sphere, including the great vessels,
+ // smooth unions and valve chordae. The local rotations preserve distance;
+ // contraction only shrinks the sculpture. Reject background rays before
+ // evaluating anatomy, but retain the original march for every possible hit.
+ float closest=-dot(ro,rd);
+ vec3 nearest=ro+rd*max(closest,0.);
+ if(dot(nearest,nearest)<=2.25){
+  for(int i=0;i<112;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.72,.001);if(travel>6.)break;}
+ }
  if(hit){
   vec2 e=vec2(.002,0.);vec3 n=normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));
   vec3 q=local(p);vec3 vesselPoint=q;vesselPoint.z=.35;float vein=vessels(vesselPoint);
