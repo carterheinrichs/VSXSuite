@@ -38,22 +38,32 @@ test("heart valves cycle in silence, rewind reproducibly and support exterior vi
     const repeated = capture(0.12 / 1.12);
     scene.params.cutaway = false;
     const exterior = capture(0.12 / 1.12);
+    scene.params.cutaway = true;
+    scene.params.reactivity = 1;
+    frame.bpm = 120;
+    frame.beatPhase = 0;
+    const onBeat = capture(0);
+    frame.beatPhase = 0.5;
+    const betweenBeats = capture(0);
     let cycle = 0,
       cutaway = 0,
+      tempoCycle = 0,
       mismatch = 0;
     for (let i = 0; i < closed.length; i++) {
       if (Math.abs(closed[i] - open[i]) > 8) cycle++;
       if (Math.abs(closed[i] - exterior[i]) > 8) cutaway++;
       if (closed[i] !== repeated[i]) mismatch++;
+      if (Math.abs(onBeat[i] - betweenBeats[i]) > 8) tempoCycle++;
     }
     scene.dispose();
     target.dispose();
     read.dispose();
     renderer.dispose();
-    return { cycle, cutaway, mismatch };
+    return { cycle, cutaway, mismatch, tempoCycle };
   });
   expect(result.cycle).toBeGreaterThan(500);
   expect(result.cutaway).toBeGreaterThan(500);
   expect(result.mismatch).toBe(0);
+  expect(result.tempoCycle).toBeGreaterThan(500);
   expect(errors).toEqual([]);
 });

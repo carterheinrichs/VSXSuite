@@ -8,7 +8,7 @@ import { ShaderModule } from "./ShaderModule";
 const fragment =
   common +
   `
-uniform float uIntensity,uHue,uReactivity,uVessels,uTurn,uCutaway;
+uniform float uIntensity,uHue,uReactivity,uVessels,uTurn,uCutaway,uHeartPhase;
 float contraction,valveOpen;
 float hash(vec3 p){p=fract(p*.3183099+vec3(.13,.37,.71));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1)),f.x),f.y),f.z);}
@@ -114,9 +114,10 @@ float vessels(vec3 p){
  return d;
 }
 void main(){
- float phase=fract(uTime*1.12);
+ float phase=uHeartPhase>=0. ? fract(uHeartPhase+.12) : fract(uTime*1.12);
  float rest=exp(-pow((phase-.12)/.065,2.))+.4*exp(-pow((phase-.29)/.09,2.));
- contraction=clamp(.55*rest+uReactivity*(.42*uBeat+.18*uBass),0.,1.);
+ float drive=uReactivity*(.42*uBeat+.18*uBass);
+ contraction=clamp(uHeartPhase>=0. ? rest*(.55+drive) : .55*rest+drive,0.,1.);
  valveOpen=1.-smoothstep(.12,.65,contraction);
  vec2 uv=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
  // Fit the whole sculpture in portrait as well as landscape.
@@ -198,6 +199,7 @@ export class HumanHeartModule extends ShaderModule {
     uVessels: { value: 1 },
     uTurn: { value: 1 },
     uCutaway: { value: 1 },
+    uHeartPhase: { value: -1 },
   };
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
     this.pass = new FullscreenPass(fragment, {
@@ -215,5 +217,9 @@ export class HumanHeartModule extends ShaderModule {
     this.extra.uVessels.value = this.params.vessels;
     this.extra.uTurn.value = this.params.turn;
     this.extra.uCutaway.value = this.params.cutaway ? 1 : 0;
+    this.extra.uHeartPhase.value =
+      this.params.reactivity > 0 && Number.isFinite(audio.beatPhase)
+        ? audio.beatPhase!
+        : -1;
   }
 }

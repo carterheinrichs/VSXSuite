@@ -10,6 +10,9 @@ export interface AudioFrameData {
   centroid: number;
   beat: number;
   kick: boolean;
+  /** Detected tempo and song-aligned cycle; absent when tempo is unavailable. */
+  bpm?: number;
+  beatPhase?: number;
   uAudioTexture: THREE.DataTexture;
   uAudioHistoryTexture: THREE.DataTexture;
 }
