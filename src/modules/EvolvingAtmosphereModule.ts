@@ -80,7 +80,6 @@ export class EvolvingAtmosphereModule extends ShaderModule {
     particles: 1,
     ambient: false,
   };
-  private lastTime = -1;
   private nextWave = 0;
   private readonly waves = Array.from({ length: 8 }, () => new T.Vector4());
   private readonly extra = {
@@ -99,17 +98,19 @@ export class EvolvingAtmosphereModule extends ShaderModule {
     });
     this.resize(width, height);
   }
+  protected override onReset() {
+    for (const sw of this.waves) sw.set(0, 0, 0, 0);
+    this.nextWave = 0;
+    this.uniforms.uBass.value =
+      this.uniforms.uMid.value =
+      this.uniforms.uTreble.value =
+        0;
+  }
   override update(audio: AudioFrameData, time: number, dt: number) {
     // Offline rendering starts at zero. Clear envelopes and events on a rewind.
     if (time <= this.lastTime || this.lastTime < 0) {
-      for (const sw of this.waves) sw.set(0, 0, 0, 0);
-      this.nextWave = 0;
-      this.uniforms.uBass.value =
-        this.uniforms.uMid.value =
-        this.uniforms.uTreble.value =
-          0;
+      this.onReset();
     }
-    this.lastTime = time;
     const bass = this.uniforms.uBass.value;
     const mid = this.uniforms.uMid.value;
     const treble = this.uniforms.uTreble.value;

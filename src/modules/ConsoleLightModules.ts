@@ -475,6 +475,9 @@ abstract class ConsoleLightModule extends ShaderModule {
     });
     this.resize(w, h);
   }
+  protected override onReset() {
+    this.time = 0;
+  }
   override update(audio: AudioFrameData, time: number, dt: number) {
     super.update(audio, time, dt);
     this.time +=

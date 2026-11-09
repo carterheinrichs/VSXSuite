@@ -11,6 +11,11 @@ function follow(
 ) {
   return current + (target - current) * (target > current ? attack : release);
 }
+export type AudioSourceKind =
+  "none" | "file" | "catalog" | "synth" | "mic" | "system";
+export type AudioTransportState =
+  "idle" | "connecting" | "playing" | "paused" | "live" | "stopped";
+
 export class AudioEngine {
   readonly bytes = new Uint8Array(WIDTH * 2);
   readonly history = new Uint8Array(WIDTH * HISTORY);
@@ -58,8 +63,18 @@ export class AudioEngine {
   private fileAnalysis: FileAudioAnalysis | null = null;
   private startedAt = 0;
   private offset = 0;
+  private hasEverLoaded = false;
+  sourceKind: AudioSourceKind = "none";
   sourceName = "No audio";
   fileLoaded = false;
+  onStateChange: (() => void) | null = null;
+  get transportState(): AudioTransportState {
+    if (!this.hasSource) return this.hasEverLoaded ? "stopped" : "idle";
+    if (this.sourceKind === "mic" || this.sourceKind === "system") {
+      return this.context?.state === "running" ? "live" : "paused";
+    }
+    return this.playing ? "playing" : "paused";
+  }
   beginExport() {
     if (!this.buffer || !this.context || !this.fileLoaded)
       throw new Error("Open an audio file before exporting.");
@@ -99,6 +114,7 @@ export class AudioEngine {
     }
     if (this.playing) await this.context!.suspend();
     else await this.context!.resume();
+    this.onStateChange?.();
   }
   seek(seconds: number) {
     if (!this.buffer || !this.context || !Number.isFinite(seconds)) return;
@@ -145,9 +161,7 @@ export class AudioEngine {
     }
     await this.context.resume();
   }
-  stop() {
-    this.fileLoaded = false;
-    this.generation++;
+  private releaseActiveSource() {
     this.resetAnalysis();
     if (this.source) {
       if (this.source instanceof AudioBufferSourceNode) {
@@ -160,13 +174,24 @@ export class AudioEngine {
       this.source.disconnect();
       this.source = null;
     }
-    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream?.getTracks().forEach((t) => {
+      t.onended = null;
+      t.stop();
+    });
     this.stream = null;
     this.buffer = null;
     this.fileAnalysis = null;
     this.offset = 0;
     this.startedAt = 0;
+  }
+  stop() {
+    this.hasEverLoaded = true;
+    this.fileLoaded = false;
+    this.sourceKind = "none";
+    this.generation++;
+    this.releaseActiveSource();
     this.sourceName = "No audio";
+    this.onStateChange?.();
   }
   private resetAnalysis() {
     this.armed = true;
@@ -201,37 +226,44 @@ export class AudioEngine {
     return (this.offset + clock - this.startedAt) % this.duration;
   }
   async file(file: File) {
+    const token = ++this.generation;
     await this.ready();
-    this.stop();
-    const token = this.generation;
-    const buffer = await this.context!.decodeAudioData(
-      await file.arrayBuffer(),
-    );
+    const bytes = await file.arrayBuffer();
     if (token !== this.generation) return;
+    const buffer = await this.context!.decodeAudioData(bytes);
+    if (token !== this.generation) return;
+    await this.context!.resume();
+    this.releaseActiveSource();
     this.output!.gain.value = 0.65;
     this.startBuffer(buffer);
+    this.hasEverLoaded = true;
+    this.sourceKind = "file";
     this.sourceName = file.name;
     this.fileLoaded = true;
+    this.onStateChange?.();
   }
   async track(url: string, name: string) {
+    const token = ++this.generation;
     await this.ready();
-    this.stop();
-    const token = this.generation;
     const response = await fetch(url);
     if (!response.ok) throw new Error("Unable to load catalog track.");
-    const buffer = await this.context!.decodeAudioData(
-      await response.arrayBuffer(),
-    );
+    const bytes = await response.arrayBuffer();
     if (token !== this.generation) return;
+    const buffer = await this.context!.decodeAudioData(bytes);
+    if (token !== this.generation) return;
+    await this.context!.resume();
+    this.releaseActiveSource();
     this.output!.gain.value = 0.65;
     this.startBuffer(buffer);
+    this.hasEverLoaded = true;
+    this.sourceKind = "catalog";
     this.sourceName = name;
     this.fileLoaded = true;
+    this.onStateChange?.();
   }
   async input(system = false) {
+    const token = ++this.generation;
     await this.ready();
-    this.stop();
-    const token = this.generation;
     if (
       system &&
       (!navigator.mediaDevices ||
@@ -257,22 +289,39 @@ export class AudioEngine {
       stream.getTracks().forEach((t) => t.stop());
       return;
     }
-    if (!stream.getAudioTracks().length) {
+    const audioTracks = stream.getAudioTracks();
+    if (!audioTracks.length) {
       stream.getTracks().forEach((t) => t.stop());
       throw new Error(
         "No shared audio. Enable audio sharing in the source picker.",
       );
     }
+    await this.context!.resume();
+    this.releaseActiveSource();
+    this.fileLoaded = false;
+    this.hasEverLoaded = true;
+    this.sourceKind = system ? "system" : "mic";
     this.stream = stream;
+    for (const track of audioTracks) {
+      track.onended = () => {
+        if (this.stream === stream) this.stop();
+      };
+    }
     this.source = this.context!.createMediaStreamSource(stream);
     this.source.connect(this.analyser!);
     this.startedAt = this.context!.currentTime;
     this.output!.gain.value = 0;
     this.sourceName = system ? "System audio" : "Microphone";
+    this.onStateChange?.();
   }
   async synth() {
+    const token = ++this.generation;
     await this.ready();
-    this.stop();
+    if (token !== this.generation) return;
+    this.releaseActiveSource();
+    this.fileLoaded = false;
+    this.hasEverLoaded = true;
+    this.sourceKind = "synth";
     const c = this.context!;
     const rate = c.sampleRate;
     const buffer = c.createBuffer(1, rate * 8, rate);
@@ -301,6 +350,7 @@ export class AudioEngine {
     this.output!.gain.value = 0.65;
     this.startBuffer(buffer);
     this.sourceName = "Procedural / 120 BPM";
+    this.onStateChange?.();
   }
   update(
     time: number,
@@ -311,6 +361,10 @@ export class AudioEngine {
       buffer: AudioBuffer;
     },
   ) {
+    if (time < this.lastBeat) {
+      this.lastBeat = -1;
+      this.armed = true;
+    }
     const f = this.frame;
     if (offline) {
       offline.getByteFrequencyData(this.spectrum);

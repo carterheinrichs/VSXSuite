@@ -9,22 +9,31 @@ import {
 } from "../audio/MusicCatalog";
 import type { IVisualModule } from "../core/types";
 import { VideoExporter, type EXPORT_PRESETS } from "../core/VideoExporter";
+
+export type TrackProbeState =
+  | { status: "pending" }
+  | { status: "ready"; duration: number }
+  | { status: "failed" };
+
 export class ViszSuiteUI {
   private readonly pane: Pane;
   private readonly abort = new AbortController();
   private dragDepth = 0;
   private scrubbing = false;
+  private connectingAudio = false;
   private readonly exporter = new VideoExporter();
   private downloadURL = "";
   private catalogTracks: CatalogTrack[] = getCatalogTracks();
-  private readonly catalogDurations = new Map<string, number>();
-  private readonly catalogPending = new Set<string>();
+  private readonly catalogProbes = new Map<string, TrackProbeState>();
   private activeTrackId = "";
   private readonly unsubscribeCatalog: () => void;
   private readonly play = document.querySelector<HTMLButtonElement>("#play")!;
   private readonly seek = document.querySelector<HTMLInputElement>("#seek")!;
   private readonly elapsed = document.querySelector<HTMLElement>("#elapsed")!;
   private readonly duration = document.querySelector<HTMLElement>("#duration")!;
+  private readonly footer = document.querySelector<HTMLElement>("footer")!;
+  private readonly exportDialog =
+    document.querySelector<HTMLDialogElement>("#export-dialog")!;
   constructor(
     private readonly host: VisualizerHost,
     private readonly audio: AudioEngine,
@@ -34,61 +43,54 @@ export class ViszSuiteUI {
     });
     const visual = this.pane.addFolder({ title: "VISUAL ENGINE" });
     const sceneFolders = new Map<string, ReturnType<Pane["addFolder"]>>();
-    const catalog = document.querySelector<HTMLElement>("#catalog")!;
-    const catalogToggle =
-      document.querySelector<HTMLButtonElement>("#catalog-toggle")!;
-    catalogToggle.addEventListener(
-      "click",
-      () => {
-        const collapsed = catalog.classList.toggle("is-collapsed");
-        document.querySelector<HTMLElement>("#catalog-content")!.inert =
-          collapsed;
-        catalogToggle.setAttribute("aria-expanded", String(!collapsed));
-        catalogToggle.setAttribute(
-          "aria-label",
-          collapsed ? "Expand music catalog" : "Minimize music catalog",
-        );
-      },
-      { signal: this.abort.signal },
+    const bindCollapsiblePanel = (
+      panelSelector: string,
+      contentSelector: string,
+      toggleSelector: string,
+      expandLabel: string,
+      minimizeLabel: string,
+    ) => {
+      const panel = document.querySelector<HTMLElement>(panelSelector)!;
+      const content = document.querySelector<HTMLElement>(contentSelector)!;
+      const toggle = document.querySelector<HTMLButtonElement>(toggleSelector)!;
+      toggle.addEventListener(
+        "click",
+        () => {
+          const collapsed = panel.classList.toggle("is-collapsed");
+          content.inert = collapsed;
+          toggle.setAttribute("aria-expanded", String(!collapsed));
+          toggle.setAttribute(
+            "aria-label",
+            collapsed ? expandLabel : minimizeLabel,
+          );
+        },
+        { signal: this.abort.signal },
+      );
+    };
+    bindCollapsiblePanel(
+      "#catalog",
+      "#catalog-content",
+      "#catalog-toggle",
+      "Expand music catalog",
+      "Minimize music catalog",
     );
     this.renderCatalog();
     this.unsubscribeCatalog = subscribeCatalog((tracks) => {
       this.setCatalogTracks(tracks);
     });
-    const library = document.querySelector<HTMLElement>("#library")!;
-    const libraryToggle =
-      document.querySelector<HTMLButtonElement>("#library-toggle")!;
-    libraryToggle.addEventListener(
-      "click",
-      () => {
-        const collapsed = library.classList.toggle("is-collapsed");
-        document.querySelector<HTMLElement>("#library-content")!.inert =
-          collapsed;
-        libraryToggle.setAttribute("aria-expanded", String(!collapsed));
-        libraryToggle.setAttribute(
-          "aria-label",
-          collapsed ? "Expand visualizers" : "Minimize visualizers",
-        );
-      },
-      { signal: this.abort.signal },
+    bindCollapsiblePanel(
+      "#library",
+      "#library-content",
+      "#library-toggle",
+      "Expand visualizers",
+      "Minimize visualizers",
     );
-    const rackToggle =
-      document.querySelector<HTMLButtonElement>("#rack-toggle")!;
-    rackToggle.addEventListener(
-      "click",
-      () => {
-        const collapsed = document
-          .querySelector("#rack")!
-          .classList.toggle("is-collapsed");
-        document.querySelector<HTMLElement>("#rack-controls")!.inert =
-          collapsed;
-        rackToggle.setAttribute("aria-expanded", String(!collapsed));
-        rackToggle.setAttribute(
-          "aria-label",
-          collapsed ? "Expand control rack" : "Minimize control rack",
-        );
-      },
-      { signal: this.abort.signal },
+    bindCollapsiblePanel(
+      "#rack",
+      "#rack-controls",
+      "#rack-toggle",
+      "Expand control rack",
+      "Minimize control rack",
     );
     const grid = document.querySelector<HTMLElement>("#scene-grid")!;
     const count = document.querySelector<HTMLElement>("#scene-count")!;
@@ -250,22 +252,32 @@ export class ViszSuiteUI {
       expanded: false,
     });
     sources.addButton({ title: "Procedural beat" }).on("click", () => {
-      this.activeTrackId = "";
-      this.renderCatalog();
-      void this.run(() => audio.synth());
+      void this.run(async () => {
+        await audio.synth();
+        this.activeTrackId = "";
+        this.renderCatalog();
+        this.resetExportState();
+      });
     });
     sources.addButton({ title: "Microphone" }).on("click", () => {
-      this.activeTrackId = "";
-      this.renderCatalog();
-      void this.run(() => audio.input());
+      void this.run(async () => {
+        await audio.input();
+        this.activeTrackId = "";
+        this.renderCatalog();
+        this.resetExportState();
+      });
     });
     sources.addButton({ title: "Share system / tab audio" }).on("click", () => {
-      this.activeTrackId = "";
-      this.renderCatalog();
-      void this.run(() => audio.input(true));
+      void this.run(async () => {
+        await audio.input(true);
+        this.activeTrackId = "";
+        this.renderCatalog();
+        this.resetExportState();
+      });
     });
     sources.addButton({ title: "Stop audio" }).on("click", () => {
       this.activeTrackId = "";
+      this.scrubbing = false;
       this.renderCatalog();
       audio.stop();
       this.resetExportState();
@@ -403,6 +415,7 @@ export class ViszSuiteUI {
       "dragenter",
       (e) => {
         e.preventDefault();
+        if (this.exporter.active) return;
         this.dragDepth++;
         document.body.classList.add("dragging");
       },
@@ -412,7 +425,8 @@ export class ViszSuiteUI {
     window.addEventListener(
       "dragleave",
       () => {
-        if (--this.dragDepth <= 0) document.body.classList.remove("dragging");
+        this.dragDepth = Math.max(0, this.dragDepth - 1);
+        if (this.dragDepth === 0) document.body.classList.remove("dragging");
       },
       { signal },
     );
@@ -422,6 +436,7 @@ export class ViszSuiteUI {
         e.preventDefault();
         this.dragDepth = 0;
         document.body.classList.remove("dragging");
+        if (this.exporter.active) return;
         const file = e.dataTransfer?.files[0];
         if (file) void this.load(file);
       },
@@ -430,6 +445,17 @@ export class ViszSuiteUI {
     const fps = document.querySelector("#fps")!,
       meter = document.querySelector<HTMLElement>("#meter")!;
     const resolution = document.querySelector<HTMLElement>("#resolution")!;
+    audio.onStateChange = () => {
+      if (audio.sourceKind !== "catalog" && this.activeTrackId) {
+        this.activeTrackId = "";
+        this.renderCatalog();
+      }
+      if (!this.connectingAudio) this.source();
+    };
+    this.exporter.onStateChange = (state) => {
+      this.exportDialog.dataset.exportState = state.status;
+    };
+    this.exportDialog.dataset.exportState = this.exporter.state.status;
     host.onStats = () => {
       fps.textContent = host.stats.fps + " FPS";
       meter.style.transform =
@@ -441,6 +467,7 @@ export class ViszSuiteUI {
       this.transport();
     };
     host.onError = (message) => this.error(message);
+    this.footer.dataset.audioState = this.audio.transportState;
     this.transport();
   }
   setCatalogTracks(tracks: CatalogTrack[]) {
@@ -479,9 +506,9 @@ export class ViszSuiteUI {
       title.textContent = track.displayName;
       const runtime = document.createElement("span");
       runtime.className = "catalog-track-runtime";
-      const cached = this.catalogDurations.get(track.id);
+      const probe = this.catalogProbes.get(track.id);
       runtime.textContent =
-        cached !== undefined ? this.formatTime(cached) : "—:—";
+        probe?.status === "ready" ? this.formatTime(probe.duration) : "—:—";
       button.append(title, runtime);
       button.addEventListener(
         "click",
@@ -489,16 +516,15 @@ export class ViszSuiteUI {
         { signal: this.abort.signal },
       );
       list.append(button);
-      if (cached === undefined && !this.catalogPending.has(track.id)) {
-        this.catalogPending.add(track.id);
+      if (!probe) {
+        this.catalogProbes.set(track.id, { status: "pending" });
         void probeTrackDuration(track.url, this.abort.signal)
           .then((duration) => {
-            this.catalogPending.delete(track.id);
-            this.catalogDurations.set(track.id, duration);
+            this.catalogProbes.set(track.id, { status: "ready", duration });
             this.updateTrackRuntime(track.id, duration);
           })
           .catch(() => {
-            this.catalogPending.delete(track.id);
+            this.catalogProbes.set(track.id, { status: "failed" });
           });
       }
     }
@@ -517,14 +543,19 @@ export class ViszSuiteUI {
   }
   private async loadCatalogTrack(track: CatalogTrack) {
     if (this.exporter.active) return;
-    this.activeTrackId = track.id;
-    this.renderCatalog();
-    this.resetExportState();
-    await this.run(() => this.audio.track(track.url, track.displayName));
-    if (this.audio.duration > 0) {
-      this.catalogDurations.set(track.id, this.audio.duration);
-      this.updateTrackRuntime(track.id, this.audio.duration);
-    }
+    await this.run(async () => {
+      await this.audio.track(track.url, track.displayName);
+      this.activeTrackId = track.id;
+      this.renderCatalog();
+      this.resetExportState();
+      if (this.audio.duration > 0) {
+        this.catalogProbes.set(track.id, {
+          status: "ready",
+          duration: this.audio.duration,
+        });
+        this.updateTrackRuntime(track.id, this.audio.duration);
+      }
+    });
   }
   private formatTime(seconds: number) {
     const whole = Math.max(0, Math.floor(seconds));
@@ -537,7 +568,7 @@ export class ViszSuiteUI {
     exportButton.disabled = !audio.fileLoaded && !exporting;
     exportButton.textContent = exporting ? "Cancel export" : "Export video";
     this.play.disabled = exporting;
-    this.play.textContent = audio.playing ? "Ⅱ  PAUSE" : "▶  PLAY";
+    this.play.textContent = audio.playing ? "\u2161  PAUSE" : "\u25b6  PLAY";
     this.play.setAttribute("aria-label", audio.playing ? "Pause" : "Play");
     this.seek.disabled = audio.duration === 0 || exporting;
     this.seek.max = String(audio.duration || 1);
@@ -555,18 +586,28 @@ export class ViszSuiteUI {
           this.formatTime(audio.duration),
       );
     }
+    this.footer.dataset.audioState = this.connectingAudio
+      ? "connecting"
+      : audio.transportState;
   }
   private source() {
+    const state = this.audio.transportState;
     document.querySelector("#source-label")!.textContent =
-      this.audio.sourceName.toUpperCase();
-    document.querySelector("#status")!.textContent = !this.audio.hasSource
-      ? "AUDIO STOPPED"
-      : this.audio.playing
-        ? "AUDIO CONNECTED"
-        : "PAUSED";
+      state === "idle"
+        ? "DEMO BEAT \u00b7 PRESS PLAY"
+        : this.audio.sourceName.toUpperCase();
+    document.querySelector("#status")!.textContent =
+      state === "idle"
+        ? "READY TO EXPLORE"
+        : !this.audio.hasSource
+          ? "AUDIO STOPPED"
+          : this.audio.playing
+            ? "AUDIO CONNECTED"
+            : "PAUSED";
     this.transport();
   }
   private resetExportState() {
+    this.exporter.reset();
     document.querySelector<HTMLElement>("#export-status")!.hidden = true;
     document.querySelector<HTMLElement>("#download-video")!.hidden = true;
     if (this.downloadURL) {
@@ -583,19 +624,26 @@ export class ViszSuiteUI {
       this.error("Choose an audio file: MP3, WAV, OGG or FLAC.");
       return;
     }
-    this.activeTrackId = "";
-    this.renderCatalog();
-    this.resetExportState();
-    await this.run(() => this.audio.file(file));
+    await this.run(async () => {
+      await this.audio.file(file);
+      this.activeTrackId = "";
+      this.renderCatalog();
+      this.resetExportState();
+    });
   }
   private async run(action: () => Promise<void>) {
     if (this.exporter.active) return;
+    this.scrubbing = false;
+    this.connectingAudio = true;
     document.querySelector<HTMLElement>("#error")!.hidden = true;
     document.querySelector("#status")!.textContent = "CONNECTING AUDIO…";
+    this.footer.dataset.audioState = "connecting";
     try {
       await action();
+      this.connectingAudio = false;
       this.source();
     } catch (e) {
+      this.connectingAudio = false;
       this.error(e instanceof Error ? e.message : "Unable to open audio.");
       this.source();
     }
@@ -616,14 +664,18 @@ export class ViszSuiteUI {
     const status = document.querySelector<HTMLElement>("#export-status")!;
     const rack = document.querySelector<HTMLElement>("#rack")!;
     const catalog = document.querySelector<HTMLElement>("#catalog")!;
+    const library = document.querySelector<HTMLElement>("#library")!;
     const file = document.querySelector<HTMLButtonElement>("#file")!;
     const download =
       document.querySelector<HTMLAnchorElement>("#download-video")!;
     const quality =
       document.querySelector<HTMLSelectElement>("#export-quality")!;
     const fps = document.querySelector<HTMLSelectElement>("#export-fps")!;
+    this.dragDepth = 0;
+    document.body.classList.remove("dragging");
     rack.inert = true;
     catalog.inert = true;
+    library.inert = true;
     file.disabled = true;
     quality.disabled = true;
     fps.disabled = true;
@@ -660,6 +712,7 @@ export class ViszSuiteUI {
     } finally {
       rack.inert = false;
       catalog.inert = false;
+      library.inert = false;
       file.disabled = false;
       quality.disabled = false;
       fps.disabled = false;
@@ -673,6 +726,8 @@ export class ViszSuiteUI {
     this.unsubscribeCatalog();
     this.abort.abort();
     this.pane.dispose();
+    this.audio.onStateChange = null;
+    this.exporter.onStateChange = null;
     this.host.onStats = null;
     this.host.onError = null;
   }
