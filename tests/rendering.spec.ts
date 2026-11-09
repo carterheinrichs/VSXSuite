@@ -44,6 +44,8 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       HumanHeartModule,
     ]) {
       const scene = new Module();
+      // Beat-driven deformation must also work with ambient warp disabled.
+      if (scene instanceof HubbleAcidModule) scene.params.warp = 0;
       scene.init(renderer, 128, 80);
       for (const [w, h] of [
         [128, 80],
@@ -76,6 +78,19 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
         scene.update(frame, 0, 0);
         scene.render(renderer, target, read);
         renderer.readRenderTargetPixels(target, 0, 0, w, h, active);
+        if (scene instanceof HubbleAcidModule) {
+          scene.params.reactivity = 0;
+          scene.update(frame, 0, 0);
+          scene.render(renderer, target, read);
+          const unreactive = new Uint8Array(w * h * 4);
+          renderer.readRenderTargetPixels(target, 0, 0, w, h, unreactive);
+          if (!unreactive.every((value, index) => value === silent[index])) {
+            throw new Error(
+              "Hubble Acid still responds with reactivity disabled",
+            );
+          }
+          scene.params.reactivity = 1;
+        }
         let lit = 0,
           changed = 0,
           min = 255,

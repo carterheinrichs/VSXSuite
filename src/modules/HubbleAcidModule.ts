@@ -19,28 +19,35 @@ float fbm(vec2 p){
  return n;
 }
 void main(){
- float t=uTime*.12,bass=uBass*uReactivity,beat=uBeat*uReactivity;
+ float bass=uBass*uReactivity,beat=uBeat*uReactivity;
+ // Bounded phase surges follow the beat envelope without multiplying the
+ // absolute clock (which would jump more violently later in a song).
+ float surge=beat*.65+bass*.18;
+ float t=uTime*.12+surge;
+ float warp=uWarp+beat*1.1+bass*.35;
  vec2 sky=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.6;
- vec2 p=rot(.28+.06*sin(t*.4))*sky/(1.+bass*.12)*vec2(.87,1.12);
+ vec2 p=rot(.28+.06*sin(t*.4)+beat*.075)*sky/(1.+bass*.18+beat*.065)*vec2(.87,1.12);
  vec2 drift=vec2(t*.16,-t*.11);
  vec2 flow=vec2(fbm(p*2.+drift),fbm(p*2.-drift+17.))-.5;
- vec2 q=p+flow*uWarp*(.19+bass*.13);
+ vec2 q=p+flow*warp*(.19+bass*.13);
  float r=length(q),a=atan(q.y,q.x);
  float grain=fbm(q*8.+flow*3.+drift);
  float tendrils=fbm(vec2(cos(a),sin(a))*9.+vec2(r*17.-t,t*.2));
- float edge=.77+.045*sin(a*7.+t)+.025*sin(a*13.-t*.7);
+ float edge=.77+(.045+beat*.035)*sin(a*7.+t)+.025*sin(a*13.-t*.7);
  float shell=exp(-pow((r-edge+(.5-grain)*.12)/.19,2.));
- float filaments=pow(.5+.5*sin(r*95.+tendrils*18.-t*2.+uWarp*sin(a*9.+t)*2.),6.);
- float band=fft(fract(a/(2.*PI)+1.))*uReactivity;
+ float filaments=pow(.5+.5*sin(r*95.+tendrils*18.-t*2.+warp*sin(a*9.+t)*2.),6.);
+ // atan wraps from +PI to -PI. All angular colour and spectrum inputs
+ // must close around the circle so the wrap cannot cut a visible wedge.
+ float band=fft(.5+.5*sin(a))*uReactivity;
  vec3 gas=mix(vec3(.025,.55,1.),vec3(1.,.16,.035),smoothstep(.59,.95,r));
- gas=mix(gas,palette(r*1.8+grain*.5+a/PI*.35-t*.18+uHue),.7);
+ gas=mix(gas,palette(r*1.8+grain*.5+.22*sin(a)+.13*cos(a)-t*.18+uHue),.7);
  vec3 col=vec3(.002,.003,.013);
  col+=gas*shell*(.55+grain*.65+filaments*(.7+band*1.5))*(1.+bass*.6+beat*.45);
  float inner=exp(-r*r*3.)*(1.-smoothstep(.45,.75,r));
  col+=vec3(.025,.13,.25)*inner*(.7+grain)*(1.+uMid*uReactivity);
  float outer=exp(-pow((r-1.06)/.34,2.));
  float echoes=pow(.5+.5*sin(r*49.-grain*9.-t*2.),8.);
- col+=palette(r+a*.14-t*.1+uHue)*outer*echoes*.2*uWarp;
+ col+=palette(r+.28*sin(a)-t*.1+uHue)*outer*echoes*.2*warp;
  float front=exp(-pow((length(p)-(1.-clamp(uBeat,0.,1.))*1.8)/.055,2.))*beat;
  col+=palette(a/PI+uHue)*front*.22;
  vec2 grid=sky*23.,cell=floor(grid);
