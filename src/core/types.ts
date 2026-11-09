@@ -25,6 +25,7 @@ export interface IVisualModule {
     readBuffer: THREE.WebGLRenderTarget,
   ): void;
   resize(width: number, height: number): void;
+  prepare?(renderer: THREE.WebGLRenderer): Promise<void>;
   reset?(): void;
   dispose(): void;
 }

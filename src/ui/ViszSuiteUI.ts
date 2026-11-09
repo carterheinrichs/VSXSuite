@@ -133,11 +133,11 @@ export class ViszSuiteUI {
         button.append(art, name, tag);
         button.addEventListener(
           "click",
-          () => {
+          async () => {
             if (this.exporter.active) return;
-            host.select(module.id);
+            await host.select(module.id);
             for (const [id, folder] of sceneFolders)
-              folder.hidden = id !== module.id;
+              folder.hidden = id !== host.settings.scene;
             renderLibrary();
           },
           { signal: this.abort.signal },

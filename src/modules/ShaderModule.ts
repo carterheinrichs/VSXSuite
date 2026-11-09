@@ -8,6 +8,12 @@ export abstract class ShaderModule implements IVisualModule {
   protected readonly uniforms = audioUniforms();
   protected pass!: FullscreenPass;
   protected lastTime = -1;
+  private preparation?: Promise<void>;
+  prepare(renderer: T.WebGLRenderer) {
+    return (this.preparation ??= renderer
+      .compileAsync(this.pass.scene, this.pass.camera)
+      .then(() => {}));
+  }
   abstract init(renderer: T.WebGLRenderer, width: number, height: number): void;
   reset() {
     this.lastTime = -1;

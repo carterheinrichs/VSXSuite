@@ -90,6 +90,8 @@ export class VisualizerHost {
   private qualityTime = 0;
   private qualityFrames = 0;
   private recoveryTime = 0;
+  private recoveryDelay = 30;
+  private selectionVersion = 0;
   private readonly pixelBudget: number;
   private a: T.WebGLRenderTarget;
   private b: T.WebGLRenderTarget;
@@ -247,9 +249,27 @@ export class VisualizerHost {
     this.renderer.setRenderTarget(null);
   }
   select(id: string) {
-    this.settings.scene = id;
-    this.resetAdaptation();
-    this.clear();
+    const active = this.modules.find((module) => module.id === id);
+    if (!active || this.mode === "disposed") return;
+    const version = ++this.selectionVersion;
+    this.canvas.dataset.preparingScene = id;
+    const commit = () => {
+      if (version !== this.selectionVersion || this.mode === "disposed") return;
+      this.settings.scene = id;
+      delete this.canvas.dataset.preparingScene;
+      this.resetAdaptation();
+      this.recoveryDelay = 30;
+      // Keep the displayed frame until the new scene draws. Clearing here can
+      // expose a black canvas while its first frame is being prepared.
+    };
+    if (active.prepare) {
+      return active.prepare(this.renderer).then(commit, (error: unknown) => {
+        if (version !== this.selectionVersion || this.mode === "disposed")
+          return;
+        delete this.canvas.dataset.preparingScene;
+        this.onError?.(`Unable to prepare visualizer: ${String(error)}`);
+      });
+    } else commit();
   }
   private adapt(frameDelta: number) {
     if (this.exporting) return;
@@ -260,12 +280,15 @@ export class VisualizerHost {
     const fps = this.qualityFrames / this.qualityTime;
     this.recoveryTime = fps > 57 ? this.recoveryTime + this.qualityTime : 0;
     let scale = this.adaptiveScale;
-    if (fps < 48)
+    if (fps < 48) {
       scale = Math.max(
         this.stats.softwareGPU ? 0.55 : 0.65,
         scale * Math.max(0.75, Math.sqrt(fps / 55)),
       );
-    else if (this.recoveryTime > 8) {
+      // Back off repeated failed quality probes on expensive scenes.
+      if (scale < this.adaptiveScale)
+        this.recoveryDelay = Math.min(120, this.recoveryDelay * 1.5);
+    } else if (this.recoveryTime > this.recoveryDelay) {
       scale = Math.min(1, scale * 1.08);
       this.recoveryTime = 0;
     }
@@ -285,6 +308,9 @@ export class VisualizerHost {
     this.previous = now;
     this.elapsed += frameDelta;
     const audio = this.audio.update(this.elapsed, dt);
+    // Canvas size assignments clear its drawing buffer. Resize before drawing
+    // so the browser never presents the cleared buffer between frames.
+    this.adapt(frameDelta);
     this.renderFrame(audio, this.elapsed, dt);
     this.frames++;
     this.statsTime += frameDelta;
@@ -294,7 +320,6 @@ export class VisualizerHost {
       this.statsTime = 0;
       this.onStats?.();
     }
-    this.adapt(frameDelta);
     if (this.mode === "realtime") {
       this.frameId = requestAnimationFrame(this.tick);
     }
