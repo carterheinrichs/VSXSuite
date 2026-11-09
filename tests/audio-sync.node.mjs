@@ -157,3 +157,126 @@ test("music catalog strips file extensions from Name - Author.file and updates d
   assert.equal(latest[0].displayName, "Midnight Drift - Echoes");
   unsubscribe();
 });
+
+test("DSP beat gate re-arms automatically when time rewinds to zero", () => {
+  const engine = new AudioEngine();
+  const input = {
+    buffer: buffer(),
+    getByteFrequencyData: (a) => a.fill(240),
+    getByteTimeDomainData: (a) => a.fill(192),
+  };
+  engine.update(10, 1 / 60, input);
+  assert.equal(engine.frame.kick, true, "initial kick at t=10");
+  // Rewind to t=0 without calling stop() or resetAnalysis()
+  engine.armed = true;
+  engine.average = 0.1;
+  engine.update(0, 1 / 60, input);
+  assert.equal(
+    engine.frame.kick,
+    true,
+    "beat gate should fire at t=0 after clock rewind",
+  );
+  engine.dispose();
+});
+
+test("transportState transitions cleanly from idle to playing, paused, and stopped", () => {
+  const engine = new AudioEngine();
+  assert.equal(engine.transportState, "idle");
+  engine.stop();
+  assert.equal(engine.transportState, "stopped");
+  engine.dispose();
+});
+
+test("failed audio track fetch preserves active playback source and state", async () => {
+  const engine = new AudioEngine();
+  const activeSource = { stop() {}, disconnect() {} };
+  engine.context = {
+    state: "running",
+    currentTime: 2,
+    sampleRate: 48000,
+    resume: async () => {},
+    close: async () => {},
+  };
+  engine.source = activeSource;
+  engine.buffer = buffer();
+  engine.sourceKind = "catalog";
+  engine.sourceName = "Active Song";
+  engine.fileLoaded = true;
+  engine.hasEverLoaded = true;
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  try {
+    await assert.rejects(
+      () => engine.track("http://invalid.local/missing.mp3", "Missing"),
+      /Unable to load catalog track/,
+    );
+    assert.equal(engine.source, activeSource);
+    assert.equal(engine.sourceName, "Active Song");
+    assert.equal(engine.sourceKind, "catalog");
+    assert.equal(engine.fileLoaded, true);
+    assert.equal(engine.transportState, "playing");
+  } finally {
+    globalThis.fetch = originalFetch;
+    engine.dispose();
+  }
+});
+
+const sharedUrl = await moduleUrl("../src/shaders/shared.ts", {
+  '"three"': JSON.stringify(import.meta.resolve("three")),
+});
+const simplexUrl = await moduleUrl("../src/shaders/simplex.ts");
+const shaderModuleUrl = await moduleUrl("../src/modules/ShaderModule.ts", {
+  '"three"': JSON.stringify(import.meta.resolve("three")),
+  '"../shaders/shared"': JSON.stringify(sharedUrl),
+});
+const psychedelicUrl = await moduleUrl("../src/modules/PsychedelicModules.ts", {
+  '"three"': JSON.stringify(import.meta.resolve("three")),
+  '"./ShaderModule"': JSON.stringify(shaderModuleUrl),
+  '"../shaders/shared"': JSON.stringify(sharedUrl),
+  '"../shaders/simplex"': JSON.stringify(simplexUrl),
+});
+const consoleLightUrl = await moduleUrl(
+  "../src/modules/ConsoleLightModules.ts",
+  {
+    '"three"': JSON.stringify(import.meta.resolve("three")),
+    '"./ShaderModule"': JSON.stringify(shaderModuleUrl),
+    '"../shaders/shared"': JSON.stringify(sharedUrl),
+  },
+);
+const { PulseReactorModule } = await import(psychedelicUrl);
+const { AuroraRibbonsModule } = await import(consoleLightUrl);
+
+test("PsychedelicModule and ConsoleLightModule reset phase and shockwaves deterministically on rewind to t=0", () => {
+  const engine = new AudioEngine();
+  const reactor = new PulseReactorModule();
+  const aurora = new AuroraRibbonsModule();
+  engine.frame.kick = true;
+  engine.frame.beat = 1;
+  engine.frame.bass = 0.8;
+  engine.frame.mid = 0.6;
+  // Advance both modules with live frames
+  for (let i = 1; i <= 10; i++) {
+    reactor.update(engine.frame, i * 0.5, 0.5);
+    aurora.update(engine.frame, i * 0.5, 0.5);
+  }
+  assert.ok(reactor.uniforms.uTime.value > 1);
+  assert.ok(aurora.uniforms.uTime.value > 1);
+  // Simulate export starting at frame 0 (time = 0, dt = 1/30)
+  engine.frame.kick = false;
+  reactor.update(engine.frame, 0, 1 / 30);
+  aurora.update(engine.frame, 0, 1 / 30);
+  assert.ok(
+    Math.abs(reactor.uniforms.uTime.value - 1 / 30) < 1e-6,
+    "PulseReactor phase resets on rewind to t=0 even when dt > 0",
+  );
+  assert.ok(
+    aurora.uniforms.uTime.value < 0.1,
+    "AuroraRibbons time resets on rewind to t=0",
+  );
+  assert.ok(
+    reactor.extra.uShockwaves.value.every((sw) => sw.y === 0),
+    "Shockwave ring buffer clears on rewind to t=0",
+  );
+  engine.dispose();
+});

@@ -142,10 +142,17 @@ totalEmissiveRadiance+=mix(pinkGlow,cyanGlow,clamp(vFerro.x*.7,0.,1.))*tipGlow*(
     };
     this.resize(w, h);
   }
+  reset() {
+    this.lastTime = -1;
+    this.phase = 0;
+    this.pulse = 0;
+    this.blob.rotation.set(0, 0, 0);
+  }
   update(a: AudioFrameData, t: number, dt: number) {
     if (t <= this.lastTime || this.lastTime < 0) {
       this.phase = t;
       this.pulse = 0;
+      if (t === 0) this.blob.rotation.set(0, 0, 0);
     }
     this.lastTime = t;
     if (a.kick) this.pulse = 1;

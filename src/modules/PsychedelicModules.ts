@@ -275,6 +275,15 @@ abstract class PsychedelicModule extends ShaderModule {
     });
     this.resize(width, height);
   }
+  protected override onReset() {
+    this.phase = 0;
+    this.smoothBass = 0;
+    this.smoothMid = 0;
+    this.smoothTreble = 0;
+    this.nextShockwave = 0;
+    for (let i = 0; i < this.shockwaves.length; i++)
+      this.shockwaves[i].set(0, 0, 0, 0);
+  }
   override update(audio: AudioFrameData, time: number, dt: number) {
     super.update(audio, time, dt);
     if (this.id === "topographic-contours") {
@@ -301,11 +310,6 @@ abstract class PsychedelicModule extends ShaderModule {
     this.extra.uContours.value = this.params.contours ?? 1.2;
     this.extra.uRelief.value = this.params.relief ?? 1;
     if (this.id !== "pulse-reactor" && this.id !== "acid-chrome") return;
-    if (dt === 0 && time === 0 && !audio.kick) {
-      for (let i = 0; i < this.shockwaves.length; i++)
-        this.shockwaves[i].set(0, 0, 0, 0);
-      this.nextShockwave = 0;
-    }
     for (let i = 0; i < this.shockwaves.length; i++) {
       const sw = this.shockwaves[i];
       sw.x += dt * (0.65 + sw.w * 0.55) * this.params.speed;

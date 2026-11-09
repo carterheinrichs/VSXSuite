@@ -23,6 +23,24 @@ export interface ExportProgress {
   seconds: number;
   phase: string;
 }
+export type ExportState =
+  | { status: "idle" }
+  | {
+      status: "running";
+      phase:
+        | "probing"
+        | "suspending"
+        | "encoding_audio"
+        | "rendering"
+        | "finalizing";
+      frame: number;
+      total: number;
+      seconds: number;
+    }
+  | { status: "completed"; blob: Blob }
+  | { status: "canceled" }
+  | { status: "error"; message: string };
+
 function yieldToMain(): Promise<void> {
   if (typeof MessageChannel !== "undefined") {
     return new Promise<void>((resolve) => {
@@ -35,8 +53,17 @@ function yieldToMain(): Promise<void> {
 }
 export class VideoExporter {
   private controller: AbortController | null = null;
+  state: ExportState = { status: "idle" };
+  onStateChange: ((state: ExportState) => void) | null = null;
   get active() {
     return this.controller !== null;
+  }
+  private setState(next: ExportState) {
+    this.state = next;
+    this.onStateChange?.(next);
+  }
+  reset() {
+    if (!this.active) this.setState({ status: "idle" });
   }
   cancel() {
     this.controller?.abort();
@@ -61,6 +88,13 @@ export class VideoExporter {
       );
     const controller = new AbortController();
     this.controller = controller;
+    this.setState({
+      status: "running",
+      phase: "probing",
+      frame: 0,
+      total: 1,
+      seconds: 0,
+    });
     const check = () => {
       if (controller.signal.aborted) throw new Error("Export canceled.");
     };
@@ -98,6 +132,13 @@ export class VideoExporter {
           "This browser cannot encode the selected quality. Try 1080p or a current Chrome/Edge browser.",
         );
       check();
+      this.setState({
+        status: "running",
+        phase: "suspending",
+        frame: 0,
+        total: 1,
+        seconds: 0,
+      });
       capture = audio.beginExport();
       await capture.ready;
       check();
@@ -122,6 +163,13 @@ export class VideoExporter {
       const total = Math.ceil(capture.buffer.duration * fps);
       const dt = 1 / fps;
       // Audio is encoded directly from PCM, independent of real-time playback.
+      this.setState({
+        status: "running",
+        phase: "encoding_audio",
+        frame: 0,
+        total,
+        seconds: 0,
+      });
       onProgress({ frame: 0, total, seconds: 0, phase: "Encoding music" });
       await soundtrack.add(capture.buffer);
       soundtrack.close();
@@ -135,10 +183,18 @@ export class VideoExporter {
         host.renderFrame(data, time, dt);
         // Capture immediately after drawing: WebGL's drawing buffer need not be preserved.
         await video.add(time, Math.min(dt, capture.buffer.duration - time));
+        const seconds = Math.min(capture.buffer.duration, (frame + 1) * dt);
+        this.setState({
+          status: "running",
+          phase: "rendering",
+          frame: frame + 1,
+          total,
+          seconds,
+        });
         onProgress({
           frame: frame + 1,
           total,
-          seconds: Math.min(capture.buffer.duration, (frame + 1) * dt),
+          seconds,
           phase: "Rendering",
         });
         // Allow cancel, repaint and status updates without setTimeout clamping stalls.
@@ -149,6 +205,13 @@ export class VideoExporter {
       }
       video.close();
       check();
+      this.setState({
+        status: "running",
+        phase: "finalizing",
+        frame: total,
+        total,
+        seconds: capture.buffer.duration,
+      });
       onProgress({
         frame: total,
         total,
@@ -157,7 +220,20 @@ export class VideoExporter {
       });
       await output.finalize();
       check();
-      return new Blob([target.buffer!], { type: "video/webm" });
+      const blob = new Blob([target.buffer!], { type: "video/webm" });
+      this.controller = null;
+      this.setState({ status: "completed", blob });
+      return blob;
+    } catch (error) {
+      this.controller = null;
+      const message =
+        error instanceof Error ? error.message : "Unable to export video.";
+      if (message === "Export canceled.") {
+        this.setState({ status: "canceled" });
+      } else {
+        this.setState({ status: "error", message });
+      }
+      throw error;
     } finally {
       try {
         if (

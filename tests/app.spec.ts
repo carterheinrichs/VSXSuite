@@ -159,5 +159,62 @@ test("music catalog dynamically lists Name - Author without filetype, shows runt
     "MIDNIGHT DRIFT - NOVA PULSE",
   );
   await expect(page.locator("#status")).toHaveText("AUDIO CONNECTED");
+  await expect(page.locator("footer")).toHaveAttribute(
+    "data-audio-state",
+    "playing",
+  );
   await expect(page.locator("#duration")).toHaveText("0:12");
+  await expect(page.locator("#stage")).toHaveAttribute(
+    "data-host-mode",
+    "realtime",
+  );
+});
+
+test("failed audio load preserves existing playback and active catalog selection", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    function makeWavUrl(seconds: number) {
+      const rate = 8000;
+      const samples = Math.floor(rate * seconds);
+      const buffer = new ArrayBuffer(44 + samples * 2);
+      const view = new DataView(buffer);
+      const writeStr = (offset: number, str: string) => {
+        for (let i = 0; i < str.length; i++)
+          view.setUint8(offset + i, str.charCodeAt(i));
+      };
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + samples * 2, true);
+      writeStr(8, "WAVEfmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, rate, true);
+      view.setUint32(28, rate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, "data");
+      view.setUint32(40, samples * 2, true);
+      return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+    }
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const { updateCatalogFiles } = await import("/src/audio/MusicCatalog.ts");
+    updateCatalogFiles({
+      "/music/Good Track - Artist.wav": makeWavUrl(5),
+      "/music/Broken Track - Artist.mp3": "/music/does-not-exist-404.mp3",
+    });
+  });
+  // Play the valid track first ("Good Track - Artist" is second alphabetically)
+  const tracks = page.locator(".catalog-track");
+  await tracks.nth(1).click();
+  await expect(tracks.nth(1)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#status")).toHaveText("AUDIO CONNECTED");
+  // Clicking the broken track shows an error but preserves active playback and selection
+  await tracks.nth(0).click();
+  await expect(page.locator("#error")).toBeVisible();
+  await expect(tracks.nth(1)).toHaveAttribute("aria-pressed", "true");
+  await expect(tracks.nth(0)).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#status")).toHaveText("AUDIO CONNECTED");
+  await expect(page.locator("#source-label")).toHaveText("GOOD TRACK - ARTIST");
 });

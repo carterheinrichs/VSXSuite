@@ -32,10 +32,22 @@ import {
   WaterfallModule,
   StarfieldModule,
 } from "../modules/ClassicModules";
+export type HostMode =
+  "realtime" | "hidden" | "exporting" | "context_lost" | "disposed";
+
+export type RenderPath =
+  | "neon_raw"
+  | "neon_post"
+  | "scene_raw"
+  | "scene_post"
+  | "scene_overlay_raw"
+  | "scene_overlay_fused_post";
+
 export class VisualizerHost {
   readonly renderer: T.WebGLRenderer;
+  readonly neon = new NeonFeedbackModule();
   readonly modules: IVisualModule[] = [
-    new NeonFeedbackModule(),
+    this.neon,
     new AuroraRibbonsModule(),
     new PrismaticDriftModule(),
     new XenonBladesModule(),
@@ -81,11 +93,20 @@ export class VisualizerHost {
   private frameId = 0;
   private frames = 0;
   private statsTime = 0;
-  private disposed = false;
-  private lost = false;
+  private wasOverlayActive = false;
+  mode: HostMode = "realtime";
+  renderPath: RenderPath = "neon_post";
   onStats: (() => void) | null = null;
-  exporting = false;
   onError: ((message: string) => void) | null = null;
+  get exporting() {
+    return this.mode === "exporting";
+  }
+  set exporting(value: boolean) {
+    if (value) this.setMode("exporting");
+    else if (this.mode === "exporting") {
+      this.setMode(document.hidden ? "hidden" : "realtime");
+    }
+  }
   constructor(
     readonly canvas: HTMLCanvasElement,
     readonly audio: AudioEngine,
@@ -126,26 +147,51 @@ export class VisualizerHost {
     document.addEventListener("visibilitychange", this.visibility);
     canvas.addEventListener("webglcontextlost", this.contextLost);
     canvas.addEventListener("webglcontextrestored", this.contextRestored);
-    this.frameId = requestAnimationFrame(this.tick);
+    this.syncMode(document.hidden ? "hidden" : "realtime");
+  }
+  private syncMode(next: HostMode) {
+    this.mode = next;
+    this.canvas.dataset.hostMode = next;
+    if (next === "realtime") {
+      if (!this.frameId) {
+        this.previous = 0;
+        this.frameId = requestAnimationFrame(this.tick);
+      }
+    } else if (this.frameId) {
+      cancelAnimationFrame(this.frameId);
+      this.frameId = 0;
+    }
+  }
+  private setMode(next: HostMode) {
+    if (this.mode === "disposed") return;
+    if (this.mode === "context_lost" && next !== "disposed") return;
+    this.syncMode(next);
   }
   private contextLost = (e: Event) => {
     e.preventDefault();
-    this.lost = true;
-    cancelAnimationFrame(this.frameId);
+    this.setMode("context_lost");
     this.onError?.("Graphics context lost. Waiting for the GPU to recover…");
   };
   private contextRestored = () => {
     window.location.reload();
   };
   private visibility = () => {
-    if (document.hidden) cancelAnimationFrame(this.frameId);
-    else if (!this.disposed && !this.lost && !this.exporting) {
-      this.previous = 0;
-      this.frameId = requestAnimationFrame(this.tick);
-    }
+    if (
+      this.mode === "exporting" ||
+      this.mode === "context_lost" ||
+      this.mode === "disposed"
+    )
+      return;
+    this.setMode(document.hidden ? "hidden" : "realtime");
   };
+  resetAdaptation() {
+    this.qualityTime = 0;
+    this.qualityFrames = 0;
+    this.recoveryTime = 0;
+  }
   resize = () => {
     if (this.exporting) return;
+    this.resetAdaptation();
     // Bounded CSS budget when autoQuality is active; unlocks native HiDPI/4K when manual.
     const dpr = this.settings.autoQuality
       ? 1
@@ -172,28 +218,31 @@ export class VisualizerHost {
     if (clear) this.clear();
   }
   beginOfflineExport(width: number, height: number) {
-    this.exporting = true;
-    cancelAnimationFrame(this.frameId);
+    this.setMode("exporting");
+    for (let i = 0; i < this.modules.length; i++) this.modules[i].reset?.();
+    this.post.reset();
     this.setSize(width, height, true);
   }
   endOfflineExport() {
-    this.exporting = false;
+    if (this.mode === "exporting") {
+      this.mode = document.hidden ? "hidden" : "realtime";
+    }
     this.previous = 0;
     this.resize();
     this.clear();
-    if (!this.disposed && !this.lost && !document.hidden)
-      this.frameId = requestAnimationFrame(this.tick);
+    this.syncMode(this.mode);
   }
   clear() {
     this.renderer.setRenderTarget(this.a);
     this.renderer.clear();
     this.renderer.setRenderTarget(this.b);
     this.renderer.clear();
-    (this.modules[0] as NeonFeedbackModule).clear(this.renderer);
+    this.neon.clear(this.renderer);
     this.renderer.setRenderTarget(null);
   }
   select(id: string) {
     this.settings.scene = id;
+    this.resetAdaptation();
     this.clear();
   }
   private adapt(frameDelta: number) {
@@ -223,7 +272,8 @@ export class VisualizerHost {
   }
   // Application-owned frame paths reuse all objects, typed arrays, vectors and callbacks.
   private tick = (now: number) => {
-    if (this.disposed || this.lost) return;
+    this.frameId = 0;
+    if (this.mode !== "realtime") return;
     const frameDelta = this.previous ? (now - this.previous) / 1000 : 1 / 60;
     const dt = Math.min(frameDelta, 0.05);
     this.previous = now;
@@ -239,47 +289,64 @@ export class VisualizerHost {
       this.onStats?.();
     }
     this.adapt(frameDelta);
-    this.frameId = requestAnimationFrame(this.tick);
+    if (this.mode === "realtime") {
+      this.frameId = requestAnimationFrame(this.tick);
+    }
   };
   renderFrame(audio: AudioFrameData, time: number, dt: number) {
-    if (this.disposed || this.lost)
+    if (this.mode === "disposed" || this.mode === "context_lost")
       throw new Error("Graphics unavailable during export.");
     let active = this.modules[0];
     for (let i = 0; i < this.modules.length; i++)
       if (this.modules[i].id === this.settings.scene) active = this.modules[i];
+    const overlayActive = this.settings.overlay && active.id !== "neon";
+    if (overlayActive && !this.wasOverlayActive) {
+      this.neon.clear(this.renderer);
+    }
+    this.wasOverlayActive = overlayActive;
     active.update(audio, time, dt);
-    (this.modules[0] as NeonFeedbackModule).layered = false;
+    this.neon.layered = false;
     let read: T.WebGLRenderTarget;
-    if (active.id === "neon")
-      read = (active as NeonFeedbackModule).renderFeedback(this.renderer);
+    if (active.id === "neon") read = this.neon.renderFeedback(this.renderer);
     else {
       active.render(this.renderer, this.a, this.b);
       read = this.a;
     }
     let overlay: T.WebGLRenderTarget | null = null;
-    if (this.settings.overlay && active.id !== "neon") {
-      const neon = this.modules[0] as NeonFeedbackModule;
-      neon.layered = true;
-      neon.update(audio, time, dt);
+    if (overlayActive) {
+      this.neon.layered = true;
+      this.neon.update(audio, time, dt);
       if (this.settings.postFX) {
-        overlay = neon.renderFeedback(this.renderer);
+        overlay = this.neon.renderFeedback(this.renderer);
       } else {
-        neon.render(this.renderer, this.b, read);
+        this.neon.render(this.renderer, this.b, read);
         read = this.b;
       }
     }
     if (this.settings.postFX) {
+      this.renderPath =
+        active.id === "neon"
+          ? "neon_post"
+          : overlayActive
+            ? "scene_overlay_fused_post"
+            : "scene_post";
       this.post.update(audio, time, dt);
       this.post.renderToScreen(this.renderer, read, overlay);
     } else {
+      this.renderPath =
+        active.id === "neon"
+          ? "neon_raw"
+          : overlayActive
+            ? "scene_overlay_raw"
+            : "scene_raw";
       this.output.material.uniforms.image.value = read.texture;
       this.output.material.uniforms.raw.value = 1;
       this.output.render(this.renderer, null);
     }
+    this.canvas.dataset.renderPath = this.renderPath;
   }
   dispose() {
-    this.disposed = true;
-    cancelAnimationFrame(this.frameId);
+    this.syncMode("disposed");
     window.removeEventListener("resize", this.resize);
     document.removeEventListener("visibilitychange", this.visibility);
     this.canvas.removeEventListener("webglcontextlost", this.contextLost);
