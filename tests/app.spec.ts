@@ -4,8 +4,8 @@ for (const revision of [1, 2]) {
     page,
   }) => {
     await page.goto(`/?ui=${revision}`);
-    await expect(page.locator("[data-scene]")).toHaveCount(26);
-    await expect(page.locator("#scene-count")).toHaveText("26");
+    await expect(page.locator("[data-scene]")).toHaveCount(27);
+    await expect(page.locator("#scene-count")).toHaveText("27");
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
@@ -79,7 +79,7 @@ for (const revision of [1, 2]) {
     await expect(page.locator("#scene-count")).toHaveText("0");
     await page.getByRole("searchbox").fill("");
     await page.getByRole("button", { name: "Natural", exact: true }).click();
-    await expect(page.locator("[data-scene]")).toHaveCount(2);
+    await expect(page.locator("[data-scene]")).toHaveCount(3);
     await page.locator('[data-scene="human-heart"]').click();
     await expect(page.locator('[data-scene="human-heart"]')).toHaveAttribute(
       "aria-pressed",
@@ -117,9 +117,10 @@ test("about page displays third-party notices at the bottom", async ({
   page,
 }) => {
   await page.goto("/about.html");
-  await expect(
-    page.getByRole("link", { name: "GitHub" }),
-  ).toHaveAttribute("href", "https://github.com/carterheinrichs/VSXSuite");
+  await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+    "href",
+    "https://github.com/carterheinrichs/VSXSuite",
+  );
   const notices = page.locator("#third-party-notices");
   await expect(
     notices.getByRole("heading", { name: "Third-Party Notices" }),

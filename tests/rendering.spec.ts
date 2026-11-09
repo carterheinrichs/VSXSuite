@@ -25,6 +25,9 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     // @ts-expect-error Vite serves source modules to the integration browser.
     const { HumanHeartModule } =
       await import("/src/modules/HumanHeartModule.ts");
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const { HubbleAcidModule } =
+      await import("/src/modules/HubbleAcidModule.ts");
     const renderer = new T.WebGLRenderer();
     const audio = new AudioEngine();
     const frame = audio.update(0, 0);
@@ -37,6 +40,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       modules.TopographicContoursModule,
       RecursiveChromeModule,
       HubbleNebulaModule,
+      HubbleAcidModule,
       HumanHeartModule,
     ]) {
       const scene = new Module();

@@ -61,8 +61,10 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Classic starfield",
     "Hubble Nebula",
     "Human Heart",
+    "Hubble Ring ON ACID",
   ]);
   for (const [label, file] of [
+    ["Hubble Ring ON ACID", "hubble-acid"],
     ["Human Heart", "human-heart"],
     ["Evolving Atmosphere", "evolving-atmosphere"],
     ["Aurora ribbons", "aurora"],
