@@ -4,8 +4,8 @@ for (const revision of [1, 2]) {
     page,
   }) => {
     await page.goto(`/?ui=${revision}`);
-    await expect(page.locator("[data-scene]")).toHaveCount(24);
-    await expect(page.locator("#scene-count")).toHaveText("24");
+    await expect(page.locator("[data-scene]")).toHaveCount(25);
+    await expect(page.locator("#scene-count")).toHaveText("25");
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
@@ -78,6 +78,15 @@ for (const revision of [1, 2]) {
     );
     await expect(page.locator("#scene-count")).toHaveText("0");
     await page.getByRole("searchbox").fill("");
+    await page.getByRole("button", { name: "Natural", exact: true }).click();
+    await expect(page.locator("[data-scene]")).toHaveCount(1);
+    await expect(page.locator('[data-scene="hubble-nebula"] small')).toHaveText(
+      "Natural",
+    );
+    await page
+      .getByRole("button", { name: "Atmospheric", exact: true })
+      .click();
+    await expect(page.locator('[data-scene="hubble-nebula"]')).toHaveCount(0);
     await page.getByRole("button", { name: "Classic", exact: true }).click();
     await expect(page.locator("[data-scene]")).toHaveCount(5);
     await expect(page.locator("#scene-count")).toHaveText("5");
