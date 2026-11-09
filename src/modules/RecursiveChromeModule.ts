@@ -15,7 +15,10 @@ vec2 sculpture(vec3 p){
  float a=atan(p.y,p.x),r=length(p.xy);
  float sector=2.*PI/uDensity;
  float folded=mod(a+sector*.5,sector)-sector*.5;
- float band=fft(fract(a/(2.*PI)+.5));
+ // One spectrum value per tooth keeps its end face planar. Sampling FFT
+ // continuously across a face creates tiny, steep steps that tear under motion.
+ float toothIndex=floor((a+sector*.5)/sector);
+ float band=fft(.5+.45*sin(toothIndex*sector));
  // Flat-sided gear frames and beveled rectangular teeth avoid rounded lobes.
  float radius=2.25-uBass*.3-uKick*.22;
  float polygon=r*cos(folded);
@@ -24,7 +27,7 @@ vec2 sculpture(vec3 p){
  q.xz=rot(sin(uTime+slice)*.25+uKick*.55+band*.5)*q.xz;
  vec3 box=abs(q)-vec3(.38+band*.38,.14+uTreble*.12,.32+uKick*.23);
  float tooth=length(max(box,0.))+min(max(box.x,max(box.y,box.z)),0.)-.035;
- return vec2(min(ring,tooth),slice+floor(a/sector));
+ return vec2(min(ring,tooth),slice+toothIndex);
 }
 void main(){
  vec2 uv=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
@@ -35,11 +38,18 @@ void main(){
  vec3 ro=vec3((.3+uBass*.2)*sin(uTime*.53),(.26+uMid*.18)*cos(uTime*.41),uDrive*1.6);
  vec3 rd=normalize(vec3(uv,1.05+uBass*.18+uKick*.16));
  float travel=0.; vec2 hit=vec2(1.); vec3 p=ro;
- for(int i=0;i<72;i++){
+ float tolerance=.002;
+ for(int i=0;i<112;i++){
   p=ro+rd*travel;
   hit=sculpture(p);
-  if(hit.x<.003 || travel>26.)break;
-  travel+=max(hit.x*.7,.002);
+  tolerance=max(.002,travel*.35/uResolution.y);
+  if(hit.x<tolerance || travel>26.)break;
+  // The repeated slice changes orientation at its boundary. Never step past
+  // that boundary using the previous slice's distance estimate.
+  float localZ=mod(p.z+1.2,2.4)-1.2;
+  float boundary=(1.2-localZ)/max(rd.z,.001);
+  float conservative=hit.x/(2.+uWarp*(1.+uMid+uKick));
+  travel+=max(min(conservative,boundary+.001),.0005);
  }
  // A second, analytic tunnel fills misses and the vanishing point with moving detail.
  // Clamping radius avoids singularities at the center without a black end cap.
@@ -50,7 +60,7 @@ void main(){
  vec3 backdrop=palette(uHue+depth*.09+weave*.16+uTime*.045)
    *(.18+lanes*.28+filigree*(.12+uTreble*.65)+spectrum*.65);
  vec3 col=backdrop;
- if(hit.x<.006 && travel<26.){
+ if(hit.x<tolerance && travel<26.){
   vec2 e=vec2(.004,0.);
   vec3 n=normalize(vec3(sculpture(p+e.xyy).x-sculpture(p-e.xyy).x,
    sculpture(p+e.yxy).x-sculpture(p-e.yxy).x,
@@ -62,7 +72,8 @@ void main(){
   float diffuse=max(dot(n,normalize(vec3(-.5,.8,-.7))),0.);
   float spec=pow(max(dot(reflected,normalize(vec3(-.4,.7,-1.))),0.),38.);
   float fresnel=pow(1.-max(dot(n,-rd),0.),2.);
-  float etching=.5+.5*sin(p.z*32.+atan(p.y,p.x)*24.+sin(p.x*12.)*2.);
+  float engrave=p.z*32.+atan(p.y,p.x)*24.+sin(p.x*12.)*2.;
+  float etching=.5+.5*sin(engrave)*exp(-fwidth(engrave)*.7);
   col=enamel*(.28+diffuse*.8+bands*.55)*( .65+.35*etching)
    +vec3(1.,.9,.7)*spec*1.4+pow(palette(hue+.2),vec3(2.))*fresnel*.3;
   col=mix(col,backdrop,1.-exp(-travel*.045));
