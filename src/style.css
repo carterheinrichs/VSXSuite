@@ -614,6 +614,7 @@ h2 small {
   scrollbar-color: #373143 transparent;
 }
 .scene-card {
+  position: relative;
   background: #191c27;
   border: 1px solid #ffffff0b;
   border-radius: 8px;
@@ -621,6 +622,40 @@ h2 small {
   text-align: left;
   padding: 6px 6px 10px;
   min-width: 0;
+}
+.scene-loading:not([hidden]) {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid #c4a6ff80;
+  border-radius: 5px;
+  background: #10121fee;
+  color: #f4edff;
+  font-size: 10px;
+  pointer-events: none;
+}
+.scene-loading::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 2px solid #c4a6ff40;
+  border-top-color: #e1cfff;
+  border-radius: 50%;
+  animation: scene-loading-spin 0.8s linear infinite;
+}
+@keyframes scene-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-loading::before {
+    animation: none;
+  }
 }
 .scene-card:hover {
   background: #222636;

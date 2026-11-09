@@ -95,6 +95,16 @@ export class ViszSuiteUI {
     const grid = document.querySelector<HTMLElement>("#scene-grid")!;
     const count = document.querySelector<HTMLElement>("#scene-count")!;
     const search = document.querySelector<HTMLInputElement>("#scene-search")!;
+    const syncSceneLoading = () => {
+      for (const button of grid.querySelectorAll<HTMLButtonElement>(
+        "[data-scene]",
+      )) {
+        const loading = button.dataset.scene === host.preparingScene;
+        button.setAttribute("aria-busy", String(loading));
+        button.querySelector<HTMLElement>(".scene-loading")!.hidden = !loading;
+      }
+    };
+    host.onPreparationChange = syncSceneLoading;
     let category = "All";
     const categoryFor = (id: string, index: number) =>
       id === "hubble-nebula" || id === "human-heart"
@@ -130,7 +140,12 @@ export class ViszSuiteUI {
         name.textContent = module.name;
         const tag = document.createElement("small");
         tag.textContent = categoryFor(module.id, index);
-        button.append(art, name, tag);
+        const loading = document.createElement("span");
+        loading.className = "scene-loading";
+        loading.textContent = "Loading…";
+        loading.setAttribute("role", "status");
+        loading.hidden = true;
+        button.append(art, name, tag, loading);
         button.addEventListener(
           "click",
           async () => {
@@ -145,6 +160,7 @@ export class ViszSuiteUI {
         grid.append(button);
       });
       count.textContent = String(grid.childElementCount);
+      syncSceneLoading();
       if (!grid.childElementCount)
         grid.textContent = "No visualizers match your search.";
     };
@@ -732,5 +748,6 @@ export class ViszSuiteUI {
     this.exporter.onStateChange = null;
     this.host.onStats = null;
     this.host.onError = null;
+    this.host.onPreparationChange = null;
   }
 }

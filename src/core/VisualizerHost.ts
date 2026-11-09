@@ -106,6 +106,15 @@ export class VisualizerHost {
   renderPath: RenderPath = "neon_post";
   onStats: (() => void) | null = null;
   onError: ((message: string) => void) | null = null;
+  onPreparationChange: (() => void) | null = null;
+  get preparingScene() {
+    return this.canvas.dataset.preparingScene;
+  }
+  private setPreparingScene(id?: string) {
+    if (id) this.canvas.dataset.preparingScene = id;
+    else delete this.canvas.dataset.preparingScene;
+    this.onPreparationChange?.();
+  }
   get exporting() {
     return this.mode === "exporting";
   }
@@ -248,27 +257,31 @@ export class VisualizerHost {
     this.neon.clear(this.renderer);
     this.renderer.setRenderTarget(null);
   }
-  select(id: string) {
+  async select(id: string) {
     const active = this.modules.find((module) => module.id === id);
     if (!active || this.mode === "disposed") return;
     const version = ++this.selectionVersion;
-    this.canvas.dataset.preparingScene = id;
+    this.setPreparingScene(id);
+    const isCurrent = () =>
+      version === this.selectionVersion && this.mode !== "disposed";
     const commit = () => {
-      if (version !== this.selectionVersion || this.mode === "disposed") return;
+      if (!isCurrent()) return;
       this.settings.scene = id;
-      delete this.canvas.dataset.preparingScene;
+      this.setPreparingScene();
       this.resetAdaptation();
       this.recoveryDelay = 30;
       // Keep the displayed frame until the new scene draws. Clearing here can
       // expose a black canvas while its first frame is being prepared.
     };
     if (active.prepare) {
-      return active.prepare(this.renderer).then(commit, (error: unknown) => {
-        if (version !== this.selectionVersion || this.mode === "disposed")
-          return;
-        delete this.canvas.dataset.preparingScene;
+      try {
+        await active.prepare(this.renderer);
+        commit();
+      } catch (error: unknown) {
+        if (!isCurrent()) return;
+        this.setPreparingScene();
         this.onError?.(`Unable to prepare visualizer: ${String(error)}`);
-      });
+      }
     } else commit();
   }
   private adapt(frameDelta: number) {
@@ -378,6 +391,7 @@ export class VisualizerHost {
   }
   dispose() {
     this.syncMode("disposed");
+    this.setPreparingScene();
     window.removeEventListener("resize", this.resize);
     document.removeEventListener("visibilitychange", this.visibility);
     this.canvas.removeEventListener("webglcontextlost", this.contextLost);
