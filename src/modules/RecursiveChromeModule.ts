@@ -51,14 +51,22 @@ void main(){
   float conservative=hit.x/(2.+uWarp*(1.+uMid+uKick));
   travel+=max(min(conservative,boundary+.001),.0005);
  }
- // A second, analytic tunnel fills misses and the vanishing point with moving detail.
- // Clamping radius avoids singularities at the center without a black end cap.
- float depth=(1.+uBass*.25+uKick*.35)/max(radius,.045);
+ // Project the patterned backdrop beyond the marched corridor, with the same
+ // camera rotation and perspective as the geometry so it stays behind the opening.
+ vec2 distant=rd.xy/rd.z+ro.xy/48.;
+ float backRadius=length(distant),backAngle=atan(distant.y,distant.x);
+ float depth=(1.+uBass*.12+uKick*.12)/sqrt(backRadius*backRadius+.0004);
+ angle=backAngle;
+ float distanceHaze=1.-smoothstep(.025,.24,backRadius);
  float weave=sin(angle*uDensity+sin(depth*.7-uTime)*(1.+uMid*2.)*uWarp+uKick*2.);
  float lanes=.5+.5*sin(depth*2.6-uDrive*4.+weave*1.8);
  float filigree=pow(.5+.5*cos(angle*32.+depth*5.-uTime*3.),8.);
  vec3 backdrop=palette(uHue+depth*.09+weave*.16+uTime*.045)
    *(.18+lanes*.28+filigree*(.12+uTreble*.65)+spectrum*.65);
+ // Fine rings soften into colored haze at the vanishing point, rather than
+ // forming a bright, sharp disc that appears to float in front of the tunnel.
+ vec3 haze=palette(uHue+.12+uTime*.025)*.22;
+ backdrop=mix(backdrop*.72,haze,distanceHaze*.88);
  vec3 col=backdrop;
  if(hit.x<tolerance && travel<26.){
   vec2 e=vec2(.004,0.);
@@ -76,7 +84,9 @@ void main(){
   float etching=.5+.5*sin(engrave)*exp(-fwidth(engrave)*.7);
   col=enamel*(.28+diffuse*.8+bands*.55)*( .65+.35*etching)
    +vec3(1.,.9,.7)*spec*1.4+pow(palette(hue+.2),vec3(2.))*fresnel*.3;
-  col=mix(col,backdrop,1.-exp(-travel*.045));
+  // Keep background patterns off the nearer faces; only distant geometry
+  // fades into the same subdued haze as the backdrop.
+  col=mix(col,haze,smoothstep(10.,26.,travel)*.65);
  }
  col*=uIntensity*(.85+uRms*.55+uKick*.2);
  gl_FragColor=vec4(col,1.);
