@@ -117,6 +117,9 @@ test("about page displays third-party notices at the bottom", async ({
   page,
 }) => {
   await page.goto("/about.html");
+  await expect(
+    page.getByRole("link", { name: "GitHub" }),
+  ).toHaveAttribute("href", "https://github.com/carterheinrichs/VSXSuite");
   const notices = page.locator("#third-party-notices");
   await expect(
     notices.getByRole("heading", { name: "Third-Party Notices" }),
