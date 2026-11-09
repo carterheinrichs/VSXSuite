@@ -112,10 +112,21 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
   });
   for (const result of results) {
     expect(result.lit, result.id).toBeGreaterThan(
-      result.id === "recursive-chrome" ? 0.98 : 0.15,
+      // The heart is a centered sculpture against deliberately dark tissue.
+      result.id === "recursive-chrome"
+        ? 0.98
+        : result.id === "human-heart"
+          ? 0.1
+          : 0.15,
     );
     expect(result.changed, result.id).toBeGreaterThan(
-      result.id === "recursive-chrome" ? 0.65 : 0.1,
+      // Require a substantial part of the lit sculpture to react; its dark
+      // surroundings deliberately do not flash or change color with music.
+      result.id === "recursive-chrome"
+        ? 0.65
+        : result.id === "human-heart"
+          ? result.lit * 0.3
+          : 0.1,
     );
     expect(result.contrast, result.id).toBeGreaterThan(30);
     expect(result.opaque, result.id).toBe(true);
