@@ -4,8 +4,8 @@ for (const revision of [1, 2]) {
     page,
   }) => {
     await page.goto(`/?ui=${revision}`);
-    await expect(page.locator("[data-scene]")).toHaveCount(30);
-    await expect(page.locator("#scene-count")).toHaveText("30");
+    await expect(page.locator("[data-scene]")).toHaveCount(31);
+    await expect(page.locator("#scene-count")).toHaveText("31");
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
@@ -79,7 +79,12 @@ for (const revision of [1, 2]) {
     await expect(page.locator("#scene-count")).toHaveText("0");
     await page.getByRole("searchbox").fill("");
     await page.getByRole("button", { name: "Natural", exact: true }).click();
-    await expect(page.locator("[data-scene]")).toHaveCount(3);
+    await expect(page.locator("[data-scene]")).toHaveCount(4);
+    await page.locator('[data-scene="fireplace"]').click();
+    await expect(page.locator('[data-scene="fireplace"]')).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     await page.locator('[data-scene="human-heart"]').click();
     await expect(page.locator('[data-scene="human-heart"]')).toHaveAttribute(
       "aria-pressed",

@@ -107,7 +107,7 @@ export class ViszSuiteUI {
     host.onPreparationChange = syncSceneLoading;
     let category = "All";
     const categoryFor = (id: string, index: number) =>
-      id === "hubble-nebula" || id === "human-heart" || id === "hubble-acid"
+      ["hubble-nebula", "human-heart", "hubble-acid", "fireplace"].includes(id)
         ? "Natural"
         : [
               "classic-spectrum",
