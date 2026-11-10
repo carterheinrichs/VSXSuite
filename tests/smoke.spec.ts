@@ -62,6 +62,9 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Hubble Nebula",
     "Human Heart",
     "Hubble Ring ON ACID",
+    "Sine + cosine waves",
+    "Classic radial spectrum",
+    "Retro plasma",
   ]);
   for (const [label, file] of [
     ["Hubble Ring ON ACID", "hubble-acid"],
@@ -88,6 +91,9 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     ["Lissajous scope", "lissajous"],
     ["Waterfall spectrogram", "waterfall"],
     ["Classic starfield", "starfield"],
+    ["Sine + cosine waves", "harmonic-waves"],
+    ["Classic radial spectrum", "radial-spectrum"],
+    ["Retro plasma", "retro-plasma"],
   ]) {
     await page.getByRole("searchbox").fill(label);
     await page.locator(".scene-card").click();

@@ -4,7 +4,6 @@ A local-first modular music visualizer built with strict TypeScript, Vite, Three
 
 <img width="1853" height="1038" alt="image" src="https://github.com/user-attachments/assets/48bcd723-4417-4ba3-bf52-c6aad04153d5" />
 
-
 ## Run
 
 ```sh
@@ -74,3 +73,5 @@ Evolving Atmosphere blends slowly shifting plasma, spectral ribbons, elliptical 
 Recursive Chrome travels through a corridor of polygonal rainbow metal frames and interlocking beveled gear teeth, inspired by the dense glossy repetition in the supplied visual reference. Bass contracts the corridor, individual FFT bands extend its gear teeth, and kicks snap their tilt and accelerate travel. A flowing spectral backdrop fills the gaps. Speed, intensity, hue, warp and symmetry are adjustable. It uses the shared HDR, overlay and export pipeline with a bounded 112-step raymarcher.
 
 **Hubble Ring ON ACID** interprets [Hubble's Ring Nebula (M57) image](https://esahubble.org/images/heic1310a/) as an oval gas shell with a blue interior, rainbow filaments, liquid distortion and outer shell echoes. Bass breathes and distorts the ring, spectrum bands illuminate filaments, detected beats immediately expand, twist and accent the rim even with warp at zero, and treble strengthens star spikes. Ripples start at the shell on each hit; texture travel stays steady instead of reversing with the decaying beat envelope. Fast spectral attacks bypass the kick gate: bass pushes the shell, midrange attacks warp and light the filaments, and high-frequency attacks brighten filaments and star spikes. Angular colours blend continuously around the ring. Speed, intensity, hue, warp, stars and reactivity are adjustable. Reactivity at zero removes audio modulation. Procedural and offline; supports HDR, overlays, FX and deterministic export.
+
+Three more classics are available in the Classic library: **Sine + cosine waves** layers two or three colored harmonic traces with frequency, amplitude, speed, separation and thickness controls; **Classic radial spectrum** arranges adjustable frequency bands around a ring with radius, bar length, rotation and mirroring controls; **Retro plasma** brings flowing demoscene color fields with scale, speed, color cycles, distortion and optional scanlines. All three also support intensity, audio gain, hue, master FX, neon overlay and video export.
