@@ -7,7 +7,7 @@ import { ShaderModule } from "./ShaderModule";
 const fragment =
   common +
   `
-uniform float uIntensity,uHue,uWarp,uStars,uReactivity;
+uniform float uIntensity,uHue,uWarp,uStars,uReactivity,uLowAttack,uMidAttack,uHighAttack;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){
  vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
@@ -23,8 +23,10 @@ void main(){
  // Keep texture travel independent of the decaying beat envelope: adding
  // that envelope to time makes the animation run backwards after every hit.
  float t=uTime*.12;
- float hit=pow(clamp(uBeat,0.,1.),2.)*uReactivity;
- float warp=uWarp+hit*1.1+bass*.2;
+ float hit=max(clamp(uBeat,0.,1.),uLowAttack)*uReactivity;
+ float mid=uMid*uReactivity,treble=uTreble*uReactivity;
+ float snap=uMidAttack*uReactivity,shimmer=uHighAttack*uReactivity;
+ float warp=uWarp+hit*1.1+bass*.35+snap*.55;
  vec2 sky=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.6;
  vec2 p=rot(.28+.06*sin(t*.4)+hit*.045)*sky/(1.+bass*.08+hit*.14)*vec2(.87,1.12);
  vec2 drift=vec2(t*.16,-t*.11);
@@ -33,21 +35,21 @@ void main(){
  float r=length(q),a=atan(q.y,q.x);
  float grain=fbm(q*8.+flow*3.+drift);
  float tendrils=fbm(vec2(cos(a),sin(a))*9.+vec2(r*17.-t,t*.2));
- float edge=.77+(.045+hit*.035)*sin(a*7.+t)+.025*sin(a*13.-t*.7);
+ float edge=.77+(.045+hit*.035)*sin(a*7.+t)+(.025+snap*.025)*sin(a*13.-t*.7);
  float shell=exp(-pow((r-edge+(.5-grain)*.12)/.19,2.));
- float filaments=pow(.5+.5*sin(r*95.+tendrils*18.-t*2.+warp*sin(a*9.+t)*2.),6.);
+ float filaments=pow(.5+.5*sin(r*95.+tendrils*18.-t*2.+warp*sin(a*9.+t)*2.+mid*.8),6.);
  // atan wraps from +PI to -PI. All angular colour and spectrum inputs
  // must close around the circle so the wrap cannot cut a visible wedge.
  float band=fft(.5+.5*sin(a))*uReactivity;
  vec3 gas=mix(vec3(.025,.55,1.),vec3(1.,.16,.035),smoothstep(.59,.95,r));
  gas=mix(gas,palette(r*1.8+grain*.5+.22*sin(a)+.13*cos(a)-t*.18+uHue),.7);
  vec3 col=vec3(.002,.003,.013);
- col+=gas*shell*(.55+grain*.65+filaments*(.7+band*1.5))*(1.+bass*.35+hit*.8);
+ col+=gas*shell*(.55+grain*.65+filaments*(.7+band*1.5+snap*.8+shimmer*.6))*(1.+bass*.35+hit*.8+mid*.25);
  // A sharp rim accent lands on the onset, rather than waiting for a
  // centre-origin wave to reach the visible shell.
  col+=gas*exp(-pow((r-edge)/.07,2.))*hit*.65;
  float inner=exp(-r*r*3.)*(1.-smoothstep(.45,.75,r));
- col+=vec3(.025,.13,.25)*inner*(.7+grain)*(1.+uMid*uReactivity);
+ col+=vec3(.025,.13,.25)*inner*(.7+grain)*(1.+mid+snap);
  float outer=exp(-pow((r-1.06)/.34,2.));
  float echoes=pow(.5+.5*sin(r*49.-grain*9.-t*2.),8.);
  col+=palette(r+.28*sin(a)-t*.1+uHue)*outer*echoes*.2*warp;
@@ -59,7 +61,7 @@ void main(){
   vec2 d=grid-id-vec2(hash(id),hash(id+31.));
   float seed=hash(id+73.),dist=length(d),bright=pow(seed,16.);
   float star=exp(-dist*dist/.0012)*(.2+bright*3.);
-  star+=bright*exp(-min(abs(d.x),abs(d.y))*110.)*exp(-dist*7.)*(.25+uTreble*uReactivity);
+  star+=bright*exp(-min(abs(d.x),abs(d.y))*110.)*exp(-dist*7.)*(.25+treble+shimmer*2.);
   col+=mix(vec3(.5,.7,1.),vec3(1.,.7,.4),seed)*star*uStars;
  }
  col+=vec3(.65,.85,1.)*exp(-dot(p,p)*14000.)*3.;
@@ -84,6 +86,9 @@ export class HubbleAcidModule extends ShaderModule {
     uWarp: { value: 1 },
     uStars: { value: 1 },
     uReactivity: { value: 1 },
+    uLowAttack: { value: 0 },
+    uMidAttack: { value: 0 },
+    uHighAttack: { value: 0 },
   };
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
     this.pass = new FullscreenPass(fragment, {
@@ -100,5 +105,8 @@ export class HubbleAcidModule extends ShaderModule {
     this.extra.uWarp.value = this.params.warp;
     this.extra.uStars.value = this.params.stars;
     this.extra.uReactivity.value = this.params.reactivity;
+    this.extra.uLowAttack.value = audio.lowAttack ?? 0;
+    this.extra.uMidAttack.value = audio.midAttack ?? 0;
+    this.extra.uHighAttack.value = audio.highAttack ?? 0;
   }
 }

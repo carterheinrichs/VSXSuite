@@ -96,6 +96,39 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
             );
           }
           scene.params.reactivity = 1;
+          frame.beat = 0;
+          for (const attack of [
+            "lowAttack",
+            "midAttack",
+            "highAttack",
+          ] as const) {
+            frame[attack] = 1;
+            scene.update(frame, 0, 0);
+            scene.render(renderer, target, read);
+            renderer.readRenderTargetPixels(target, 0, 0, w, h, unreactive);
+            let changedPixels = 0;
+            for (let i = 0; i < unreactive.length; i += 4) {
+              if (
+                Math.abs(unreactive[i] - silent[i]) +
+                  Math.abs(unreactive[i + 1] - silent[i + 1]) +
+                  Math.abs(unreactive[i + 2] - silent[i + 2]) >
+                6
+              )
+                changedPixels++;
+            }
+            if (changedPixels < w * h * 0.02) {
+              throw new Error(`Hubble Acid missed isolated ${attack}`);
+            }
+            scene.params.reactivity = 0;
+            scene.update(frame, 0, 0);
+            scene.render(renderer, target, read);
+            renderer.readRenderTargetPixels(target, 0, 0, w, h, unreactive);
+            if (!unreactive.every((value, index) => value === silent[index])) {
+              throw new Error(`Hubble Acid cannot disable ${attack}`);
+            }
+            frame[attack] = 0;
+            scene.params.reactivity = 1;
+          }
         }
         let lit = 0,
           changed = 0,

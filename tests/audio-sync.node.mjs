@@ -91,12 +91,18 @@ test("seek clears previous energy, beats and history", () => {
   engine.buffer = song;
   engine.frame.bass = engine.frame.rms = engine.frame.beat = 1;
   engine.frame.kick = true;
+  engine.frame.lowAttack = engine.frame.midAttack = engine.frame.highAttack = 1;
+  engine.previousSpectrum.fill(255);
   engine.history.fill(255);
   engine.seek(0.5);
   assert.equal(engine.frame.bass, 0);
   assert.equal(engine.frame.rms, 0);
   assert.equal(engine.frame.beat, 0);
   assert.equal(engine.frame.kick, false);
+  assert.equal(engine.frame.lowAttack, 0);
+  assert.equal(engine.frame.midAttack, 0);
+  assert.equal(engine.frame.highAttack, 0);
+  assert.ok(engine.previousSpectrum.every((v) => v === 0));
   assert.ok(engine.history.every((v) => v === 0));
   assert.equal(engine.position, 0.5);
 });
@@ -224,6 +230,42 @@ test("sustained bass does not produce repeated false kicks", () => {
   }
   assert.equal(kicks, 1);
   engine.dispose();
+});
+
+test("fast percussion attacks respond immediately between kick-gate events", () => {
+  for (const fps of [30, 60, 120]) {
+    const engine = new AudioEngine();
+    let band = -1;
+    const input = {
+      buffer: buffer(),
+      getByteFrequencyData: (a) => {
+        a.fill(40);
+        if (band === 0) a.fill(180, 1, 6);
+        if (band === 1) a.fill(180, 6, 86);
+        if (band === 2) a.fill(180, 86, 342);
+      },
+      getByteTimeDomainData: (a) => a.fill(160),
+    };
+    engine.update(0, 1 / fps, input);
+    for (let i = 1; i <= fps; i++) {
+      band = i % (fps / 5) === 0 ? (Math.round(i / (fps / 5)) - 1) % 3 : -1;
+      const f = engine.update(i / fps, 1 / fps, input);
+      if (band >= 0) {
+        if (band === 0)
+          assert.equal(
+            f.kick,
+            true,
+            "closely spaced bass hits are not locked out",
+          );
+        assert.equal(
+          [f.lowAttack, f.midAttack, f.highAttack][band],
+          1,
+          `${fps} FPS band ${band}: attack lands on the input frame`,
+        );
+      }
+    }
+    engine.dispose();
+  }
 });
 
 test("transportState transitions cleanly from idle to playing, paused, and stopped", () => {

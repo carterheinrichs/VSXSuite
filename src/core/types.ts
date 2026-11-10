@@ -10,6 +10,10 @@ export interface AudioFrameData {
   centroid: number;
   beat: number;
   kick: boolean;
+  /** Fast spectral attacks, including percussion that is not a bass kick. */
+  lowAttack?: number;
+  midAttack?: number;
+  highAttack?: number;
   /** Detected tempo and song-aligned cycle; absent when tempo is unavailable. */
   bpm?: number;
   beatPhase?: number;

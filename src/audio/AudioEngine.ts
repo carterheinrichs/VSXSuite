@@ -21,6 +21,7 @@ export class AudioEngine {
   readonly history = new Uint8Array(WIDTH * HISTORY);
   private readonly spectrum = this.bytes.subarray(0, WIDTH);
   private readonly waveform = this.bytes.subarray(WIDTH);
+  private readonly previousSpectrum = new Uint8Array(WIDTH);
   readonly texture = new T.DataTexture(
     this.bytes,
     WIDTH,
@@ -46,6 +47,9 @@ export class AudioEngine {
     centroid: 0,
     beat: 0,
     kick: false,
+    lowAttack: 0,
+    midAttack: 0,
+    highAttack: 0,
     uAudioTexture: this.texture,
     uAudioHistoryTexture: this.historyTexture,
   };
@@ -205,6 +209,8 @@ export class AudioEngine {
     f.subBass = f.bass = f.lowMid = f.mid = f.highMid = f.treble = 0;
     f.rms = f.centroid = f.beat = 0;
     f.kick = false;
+    f.lowAttack = f.midAttack = f.highAttack = 0;
+    this.previousSpectrum.fill(0);
     f.bpm = f.beatPhase = undefined;
     this.bytes.fill(0);
     this.waveform.fill(128);
@@ -371,6 +377,8 @@ export class AudioEngine {
       this.livePeriod = 0;
       this.armed = true;
       this.lowEnvelope = 0;
+      this.previousSpectrum.fill(0);
+      this.frame.lowAttack = this.frame.midAttack = this.frame.highAttack = 0;
     }
     const f = this.frame;
     if (offline) {
@@ -408,14 +416,48 @@ export class AudioEngine {
     const release = 1 - Math.exp(-dt * 12);
     let energy = 0,
       weighted = 0,
-      rms = 0;
+      rms = 0,
+      lowFlux = 0,
+      midFlux = 0,
+      highFlux = 0,
+      lowBins = 0,
+      midBins = 0,
+      highBins = 0;
     for (let i = 0; i < WIDTH; i++) {
       const v = this.spectrum[i] / 255;
+      // Positive spectral change responds on this frame, without waiting for
+      // the kick gate or the smoothed volume to reach a threshold.
+      const rise = Math.max(0, v - this.previousSpectrum[i] / 255);
+      const frequency = i * hz;
+      if (frequency >= 20 && frequency < 250) {
+        lowFlux += rise;
+        lowBins++;
+      } else if (frequency >= 250 && frequency < 4000) {
+        midFlux += rise;
+        midBins++;
+      } else if (frequency >= 4000 && frequency < 16000) {
+        highFlux += rise;
+        highBins++;
+      }
+      this.previousSpectrum[i] = this.spectrum[i];
       energy += v;
       weighted += v * i;
       const wave = (this.waveform[i] - 128) / 128;
       rms += wave * wave;
     }
+    const decay = Math.exp(-dt * 18);
+    f.lowAttack = Math.max(
+      (f.lowAttack ?? 0) * decay,
+      Math.min(1, (lowFlux / Math.max(1, lowBins)) * 8),
+    );
+    f.midAttack = Math.max(
+      (f.midAttack ?? 0) * decay,
+      Math.min(1, (midFlux / Math.max(1, midBins)) * 8),
+    );
+    f.highAttack = Math.max(
+      (f.highAttack ?? 0) * decay,
+      Math.min(1, (highFlux / Math.max(1, highBins)) * 8),
+    );
     f.rms = follow(f.rms, Math.sqrt(rms / WIDTH), attack, release);
     f.centroid = energy > 0 ? weighted / (energy * (WIDTH - 1)) : 0;
     f.subBass = follow(f.subBass, this.band(20, 60, hz), attack, release);
@@ -433,7 +475,7 @@ export class AudioEngine {
       low > this.lowEnvelope * 1.06;
     f.kick =
       ((this.armed && low > Math.max(0.15, this.average * 1.35)) || onset) &&
-      time - this.lastBeat > 0.24;
+      time - this.lastBeat > 0.12;
     if (f.kick) {
       const interval = time - this.lastBeat;
       if (this.lastBeat >= 0 && interval >= 1 / 3 && interval <= 1) {
