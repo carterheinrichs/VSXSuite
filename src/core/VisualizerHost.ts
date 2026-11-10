@@ -35,6 +35,9 @@ import {
   LissajousModule,
   WaterfallModule,
   StarfieldModule,
+  HarmonicWavesModule,
+  RadialSpectrumModule,
+  RetroPlasmaModule,
 } from "../modules/ClassicModules";
 export type HostMode =
   "realtime" | "hidden" | "exporting" | "context_lost" | "disposed";
@@ -78,6 +81,9 @@ export class VisualizerHost {
     new HubbleNebulaModule(),
     new HumanHeartModule(),
     new HubbleAcidModule(),
+    new HarmonicWavesModule(),
+    new RadialSpectrumModule(),
+    new RetroPlasmaModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {

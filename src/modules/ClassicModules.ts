@@ -120,6 +120,12 @@ abstract class ClassicModule extends ShaderModule {
       ...this.uniforms,
       ...this.extra,
       ...this.getExtraUniforms(),
+      ...Object.fromEntries(
+        Object.entries(this.params).map(([key, value]) => [
+          `u_${key}`,
+          { value },
+        ]),
+      ),
     });
     this.resize(width, height);
   }
@@ -128,6 +134,10 @@ abstract class ClassicModule extends ShaderModule {
     this.extra.uIntensity.value = this.params.intensity;
     this.extra.uGain.value = this.params.gain;
     this.extra.uHue.value = this.params.hue;
+    for (const key in this.params)
+      this.pass.material.uniforms[`u_${key}`].value = (
+        this.params as Record<string, number | boolean>
+      )[key];
     if (this.id === "waterfall") audio.uAudioHistoryTexture.needsUpdate = true;
   }
 }
@@ -171,4 +181,107 @@ export class StarfieldModule extends ClassicModule {
   protected override getExtraUniforms() {
     return { uStars: { value: this.stars } };
   }
+}
+
+// Analytic wave slopes keep steep curves a consistent screen-space thickness.
+export class HarmonicWavesModule extends ClassicModule {
+  readonly id = "harmonic-waves";
+  readonly name = "Sine + cosine waves";
+  override params = {
+    intensity: 1.2,
+    gain: 1,
+    hue: 0,
+    waveCount: 3,
+    frequency: 1,
+    amplitude: 1,
+    speed: 1,
+    separation: 0.35,
+    thickness: 1,
+  };
+  protected readonly fragment =
+    classic +
+    `
+uniform float u_waveCount,u_frequency,u_amplitude,u_speed,u_separation,u_thickness;
+void main(){
+ vec2 p=vUv; vec3 col=vec3(.003,.006,.012);
+ float t=uTime*u_speed;
+ for(int i=0;i<3;i++){
+  if(float(i)>=u_waveCount) break;
+  float n=float(i), k=2.*PI*(1.+n*.35)*u_frequency;
+  float phase=k*p.x+t*(1.+n*.23)+n*2.1;
+  float amp=.16*u_amplitude*(1.+uRms*uGain*.5);
+  float center=.5+(n-(u_waveCount-1.)*.5)*u_separation*.3;
+  float y=center+amp*(.65*sin(phase)+.35*cos(phase*.5-n));
+  float slope=amp*k*(.65*cos(phase)-.175*sin(phase*.5-n));
+  float d=abs(p.y-y)/sqrt(1.+pow(slope*uResolution.y/uResolution.x,2.));
+  col+=ink(n*.27+t*.015)*trace(d/max(u_thickness,.2))*(.75+uBass*uGain*.35);
+ }
+ gl_FragColor=vec4(col,1.);
+}`;
+}
+
+export class RadialSpectrumModule extends ClassicModule {
+  readonly id = "radial-spectrum";
+  readonly name = "Classic radial spectrum";
+  override params = {
+    intensity: 1.2,
+    gain: 1,
+    hue: 0,
+    bands: 64,
+    radius: 0.65,
+    barLength: 1,
+    rotation: 0.2,
+    mirror: true,
+  };
+  protected readonly fragment =
+    classic +
+    `
+uniform float u_bands,u_radius,u_barLength,u_rotation;
+uniform bool u_mirror;
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.);
+ float a=fract(atan(p.y,p.x)/(2.*PI)+.5+uTime*u_rotation*.04);
+ float band=floor(a*u_bands), cell=fract(a*u_bands);
+ float x=(band+.5)/u_bands;
+ if(u_mirror) x=1.-abs(x*2.-1.);
+ float power=clamp(fft(x)*uGain,0.,1.);
+ float r=length(p), base=.08+u_radius*.18;
+ float edge=base+.012+power*.22*u_barLength;
+ float aa=1.5/uResolution.y;
+ float bar=smoothstep(base-aa,base+aa,r)*(1.-smoothstep(edge-aa,edge+aa,r));
+ bar*=smoothstep(.08,.18,cell)*(1.-smoothstep(.82,.92,cell));
+ vec3 col=vec3(.003,.005,.012)+ink(x*.7)*bar;
+ col+=ink(.2)*trace(abs(r-base))*(.25+uBass*uGain*.5);
+ gl_FragColor=vec4(col,1.);
+}`;
+}
+
+export class RetroPlasmaModule extends ClassicModule {
+  readonly id = "retro-plasma";
+  readonly name = "Retro plasma";
+  override params = {
+    intensity: 1.2,
+    gain: 1,
+    hue: 0,
+    speed: 1,
+    scale: 1,
+    colorCycles: 1,
+    distortion: 1,
+    scanlines: true,
+  };
+  protected readonly fragment =
+    classic +
+    `
+uniform float u_speed,u_scale,u_colorCycles,u_distortion;
+uniform bool u_scanlines;
+void main(){
+ vec2 p=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*u_scale*8.;
+ float t=uTime*u_speed;
+ p+=u_distortion*uBass*uGain*vec2(sin(p.y+t),cos(p.x-t))*.6;
+ float field=sin(p.x+t)+cos(p.y-t*.7)+sin((p.x+p.y)*.7+t*.5);
+ field+=cos(length(p-vec2(sin(t*.3),cos(t*.4))*2.)*1.4-t);
+ vec3 col=ink(field*.17*u_colorCycles+t*.025)*(.55+uRms*uGain*.45);
+ if(u_scanlines) col*=.85+.15*cos(vUv.y*uResolution.y*PI);
+ gl_FragColor=vec4(col,1.);
+}`;
 }

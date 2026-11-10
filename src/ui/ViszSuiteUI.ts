@@ -109,7 +109,16 @@ export class ViszSuiteUI {
     const categoryFor = (id: string, index: number) =>
       id === "hubble-nebula" || id === "human-heart" || id === "hubble-acid"
         ? "Natural"
-        : index >= 19 && index <= 23
+        : [
+              "classic-spectrum",
+              "oscilloscope",
+              "lissajous",
+              "waterfall",
+              "starfield",
+              "harmonic-waves",
+              "radial-spectrum",
+              "retro-plasma",
+            ].includes(id)
           ? "Classic"
           : [3, 4, 5, 9, 10, 13, 14].includes(index)
             ? "Geometric"
@@ -244,6 +253,13 @@ export class ViszSuiteUI {
       for (const key of Object.keys(module.params)) {
         const value = module.params[key];
         if (typeof value === "boolean") folder.addBinding(module.params, key);
+        else if (key === "waveCount")
+          folder.addBinding(module.params, key, {
+            label: "Waves",
+            options: { Two: 2, Three: 3 },
+          });
+        else if (key === "bands")
+          folder.addBinding(module.params, key, { min: 16, max: 128, step: 1 });
         else
           folder.addBinding(module.params, key, {
             min: key === "symmetry" ? 2 : key === "detail" ? 32 : 0,
