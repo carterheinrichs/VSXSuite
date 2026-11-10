@@ -705,6 +705,7 @@ export class ViszSuiteUI {
     const quality =
       document.querySelector<HTMLSelectElement>("#export-quality")!;
     const fps = document.querySelector<HTMLSelectElement>("#export-fps")!;
+    const portrait = document.querySelector<HTMLInputElement>("#export-portrait")!;
     this.dragDepth = 0;
     document.body.classList.remove("dragging");
     rack.inert = true;
@@ -713,6 +714,7 @@ export class ViszSuiteUI {
     file.disabled = true;
     quality.disabled = true;
     fps.disabled = true;
+    portrait.disabled = true;
     download.hidden = true;
     status.hidden = false;
     status.textContent = "Preparing full-song export…";
@@ -724,8 +726,9 @@ export class ViszSuiteUI {
         Number(fps.value) as 30 | 60,
         (progress) => {
           const percent = Math.floor((progress.frame / progress.total) * 100);
-          status.textContent = `${progress.phase} · ${quality.value.toUpperCase()} / ${fps.value} FPS · ${percent}% · ${this.formatTime(progress.seconds)} / ${this.formatTime(this.audio.duration)}. Every frame is rendered; this may take longer than the song.`;
+          status.textContent = `${progress.phase} · ${quality.value.toUpperCase()} / ${fps.value} FPS / ${portrait.checked ? "Portrait" : "Landscape"} · ${percent}% · ${this.formatTime(progress.seconds)} / ${this.formatTime(this.audio.duration)}. Every frame is rendered; this may take longer than the song.`;
         },
+        portrait.checked,
       );
       this.transport();
       const blob = await recording;
@@ -750,6 +753,7 @@ export class ViszSuiteUI {
       file.disabled = false;
       quality.disabled = false;
       fps.disabled = false;
+      portrait.disabled = false;
       this.transport();
       this.source();
     }

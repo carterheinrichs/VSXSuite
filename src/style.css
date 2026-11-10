@@ -841,6 +841,17 @@ dialog h3 {
 .export-fields #export {
   grid-column: 1/-1;
 }
+.export-portrait {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #eee;
+}
+.export-portrait input {
+  accent-color: #9ef0c8;
+}
 #download-video:not([hidden]) {
   grid-column: 1/-1;
   display: flex;

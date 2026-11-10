@@ -75,6 +75,7 @@ export class VideoExporter {
     preset: keyof typeof EXPORT_PRESETS = "1440p",
     fps: 30 | 60 = 30,
     onProgress: (progress: ExportProgress) => void = () => {},
+    portrait = false,
   ): Promise<Blob> {
     if (this.active) throw new Error("An export is already running.");
     if (!audio.fileLoaded)
@@ -98,7 +99,10 @@ export class VideoExporter {
     const check = () => {
       if (controller.signal.aborted) throw new Error("Export canceled.");
     };
-    const { width, height, bitrate } = EXPORT_PRESETS[preset];
+    const dimensions = EXPORT_PRESETS[preset];
+    const width = portrait ? dimensions.height : dimensions.width;
+    const height = portrait ? dimensions.width : dimensions.height;
+    const { bitrate } = dimensions;
     const quality = new Quality({
       bitrate: bitrate * (fps / 30),
       bitrateMode: "variable",
