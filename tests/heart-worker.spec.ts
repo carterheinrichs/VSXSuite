@@ -7,15 +7,24 @@ test("heart worker keeps the UI running through a slow first draw and preserves 
   await page.route("**/heart.worker.ts*", async (route) => {
     const response = await route.fetch();
     const source = await response.text();
-    const marker = "scope.onmessage = ({ data }) => {";
+    const marker = "scope.onmessage = async ({ data }) => {";
     expect(source).toContain(marker);
     await route.fulfill({
       response,
-      body: source.replace(
-        marker,
-        marker +
-          " const until = performance.now() + 350; while (performance.now() < until) {}",
-      ),
+      body: source
+        .replace(
+          "pass.render(renderer, output);",
+          'if (!output.scissorTest || output.scissor.z > 32 || output.scissor.w > 32) throw new Error("Unbounded heart GPU submission"); pass.render(renderer, output);',
+        )
+        .replace(
+          "renderer.toneMapping = T.NoToneMapping;",
+          'renderer.readRenderTargetPixels = () => { throw new Error("Synchronous heart readback"); }; renderer.toneMapping = T.NoToneMapping;',
+        )
+        .replace(
+          marker,
+          marker +
+            " const until = performance.now() + 350; while (performance.now() < until) {}",
+        ),
     });
   });
   await page.goto("/");
@@ -65,22 +74,22 @@ test("heart worker keeps the UI running through a slow first draw and preserves 
       );
     // Drain the already requested frame, then change size, valve mode and phase.
     await nextFrame();
-    scene.resize(144, 256);
+    scene.resize(145, 257);
     scene.params.cutaway = false;
     const frame = audio.update(4, 1 / 30);
     frame.beatPhase = 0.5;
     scene.update(frame, 4, 1 / 30);
-    expected.setSize(144, 256);
-    actual.setSize(144, 256);
+    expected.setSize(145, 257);
+    actual.setSize(145, 257);
     const updated = nextFrame();
     scene.renderRealtime(renderer, actual);
     await updated;
     scene.render(renderer, expected, actual);
     scene.renderRealtime(renderer, actual);
-    const c = new Uint16Array(144 * 256 * 4),
+    const c = new Uint16Array(145 * 257 * 4),
       d = new Uint16Array(c.length);
-    renderer.readRenderTargetPixels(expected, 0, 0, 144, 256, c);
-    renderer.readRenderTargetPixels(actual, 0, 0, 144, 256, d);
+    renderer.readRenderTargetPixels(expected, 0, 0, 145, 257, c);
+    renderer.readRenderTargetPixels(actual, 0, 0, 145, 257, d);
     let resizedError = 0;
     for (let i = 0; i < c.length; i++)
       resizedError = Math.max(

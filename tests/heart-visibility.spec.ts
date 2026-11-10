@@ -28,6 +28,17 @@ test("heart optimization preserves original pixels", async ({ page }) => {
         "if(dot(nearest,nearest)<=2.25)",
         "if(true)",
       );
+      // Compare runtime loop bounds with the original constant-bound shader too.
+      for (const [name, count] of Object.entries({
+        uMarchSteps: 72,
+        uShadowSteps: 8,
+        uBranchSteps: 3,
+        uSideSteps: 2,
+        uVesselSteps: 7,
+      })) {
+        originalMaterial.fragmentShader =
+          originalMaterial.fragmentShader.replaceAll(`<${name}`, `<${count}`);
+      }
       function expectGuard(source: string) {
         if (!source.includes("if(dot(nearest,nearest)<=2.25)"))
           throw new Error("Heart visibility guard missing");

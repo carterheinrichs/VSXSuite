@@ -1,10 +1,22 @@
 import { common } from "../shaders/shared";
 // A sculpted anatomical impression: asymmetric ventricles, atria and great
 // vessels. Everything is procedural and timestamp driven for offline export.
+// Uniform bounds prevent aggressive driver unrolling of nested anatomy calls.
+// Keep the original iteration counts and visual detail.
+export function heartLoopUniforms() {
+  return {
+    uMarchSteps: { value: 72 },
+    uShadowSteps: { value: 8 },
+    uBranchSteps: { value: 3 },
+    uSideSteps: { value: 2 },
+    uVesselSteps: { value: 7 },
+  };
+}
 export const fragment =
   common +
   `
 uniform float uIntensity,uHue,uReactivity,uVessels,uTurn,uCutaway,uHeartPhase;
+uniform int uMarchSteps,uShadowSteps,uBranchSteps,uSideSteps,uVesselSteps;
 float contraction,valveOpen;
 float hash(vec3 p){p=fract(p*.3183099+vec3(.13,.37,.71));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1)),f.x),f.y),f.z);}
@@ -36,7 +48,7 @@ float organ(vec3 p){
  d=blend(d,tube(p,vec3(-.37,.35,-.07),vec3(-.43,.88,-.1),.105),.08);
  d=blend(d,tube(p,vec3(-.12,.41,.12),vec3(-.24,.68,.17),.12),.08);
  d=blend(d,tube(p,vec3(-.24,.68,.17),vec3(-.59,.69,.10),.09),.08);
- for(int i=0;i<3;i++){float x=float(i);d=blend(d,tube(p,vec3(.12+x*.10,.87,-.06),vec3(.08+x*.16,1.16-x*.035,-.08),.045),.045);}
+ for(int i=0;i<uBranchSteps;i++){float x=float(i);d=blend(d,tube(p,vec3(.12+x*.10,.87,-.06),vec3(.08+x*.16,1.16-x*.035,-.08),.045),.045);}
  return d;
 }
 float cavities(vec3 p){
@@ -65,9 +77,9 @@ vec3 valveCenter(float side){return side<.5 ? vec3(.20,.22,.12) : vec3(-.25,.30,
 float valves(vec3 p){
  float d=min(valve(p,valveCenter(0.),2.),valve(p,valveCenter(1.),3.));
  // Chordae anchor the leaflet edges to papillary muscles in each ventricle.
- for(int side=0;side<2;side++){
+ for(int side=0;side<uSideSteps;side++){
   vec3 center=valveCenter(float(side));float x=center.x;
-  for(int i=0;i<3;i++){
+  for(int i=0;i<uBranchSteps;i++){
    float a=float(i)*2.094;
    vec3 edge=center+vec3(cos(a)*(.025+valveOpen*.065),sin(a)*.065,-valveOpen*.06);
    vec3 anchor=vec3(x+cos(a)*.075,-.25+float(side)*.08,-.015);
@@ -98,13 +110,13 @@ float anatomy(vec3 p){
 float map(vec3 p){return anatomy(local(p));}
 float shadow(vec3 p,vec3 light){
  float visibility=1.,t=.018;
- for(int i=0;i<8;i++){float d=map(p+light*t);visibility=min(visibility,12.*d/t);if(visibility<=.08)break;t+=clamp(d,.035,.14);if(t>.85)break;}
+ for(int i=0;i<uShadowSteps;i++){float d=map(p+light*t);visibility=min(visibility,12.*d/t);if(visibility<=.08)break;t+=clamp(d,.035,.14);if(t>.85)break;}
  return clamp(visibility,.08,1.);
 }
 float vessels(vec3 p){
  float d=10.;
  // Descending coronary artery and alternating lateral branches on the front.
- for(int i=0;i<7;i++){
+ for(int i=0;i<uVesselSteps;i++){
   float t=float(i)/7.,s=float(i+1)/7.;
   vec3 a=vec3(-.12+.38*t+.035*sin(t*9.),.49-1.20*t,.35);
   vec3 b=vec3(-.12+.38*s+.035*sin(s*9.),.49-1.20*s,.35);
@@ -141,7 +153,7 @@ void main(){
   float chord=sqrt(max(2.25-dot(nearest,nearest),0.));
   travel=max(closest-chord,0.);
   float exitDist=closest+chord;
-  for(int i=0;i<72;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.75,.001);if(travel>exitDist)break;}
+  for(int i=0;i<uMarchSteps;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.75,.001);if(travel>exitDist)break;}
  }
  if(hit){
   vec2 e=vec2(.002,0.);vec3 n=normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));

@@ -2,7 +2,7 @@ import type * as T from "three";
 import type { AudioFrameData } from "../core/types";
 import { FullscreenPass } from "../shaders/shared";
 import { ShaderModule } from "./ShaderModule";
-import { fragment } from "./HumanHeartShader";
+import { fragment, heartLoopUniforms } from "./HumanHeartShader";
 import { HeartWorkerPass } from "./HeartWorkerPass";
 
 export class HumanHeartModule extends ShaderModule {
@@ -30,6 +30,7 @@ export class HumanHeartModule extends ShaderModule {
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
     this.pass = new FullscreenPass(fragment, {
       ...this.uniforms,
+      ...heartLoopUniforms(),
       ...this.extra,
     });
     this.resize(width, height);
