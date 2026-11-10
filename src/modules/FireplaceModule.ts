@@ -1,14 +1,16 @@
-import type * as T from "three";
+import * as T from "three";
 import type { AudioFrameData } from "../core/types";
 import { common, FullscreenPass } from "../shaders/shared";
 import { ShaderModule } from "./ShaderModule";
+import hearthUrl from "../assets/fireplace-hearth.webp?url";
 
-// One fullscreen triangle, bounded loops, no textures or intermediate targets.
+// One fullscreen triangle, one bundled texture, no intermediate targets.
 // Analytic motion also makes seeking and offline exports reproducible.
 const fragment =
   common +
   `
 uniform float uIntensity,uReactivity,uEmbers;
+uniform sampler2D uHearth;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){
  vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
@@ -20,50 +22,42 @@ void main(){
  vec2 p=(vUv-.5)*uResolution/min(uResolution.x,uResolution.y)*2.;
  float t=uTime,energy=clamp((uBass*.55+uRms*.3+uBeat*.15)*uReactivity,0.,1.5);
  float flicker=.92+.08*sin(t*7.1)+.04*sin(t*11.7);
- vec3 col=vec3(.008,.004,.003);
- // A dark masonry surround catches the warm light from the firebox.
- vec2 brick=vec2(p.x*5.+mod(floor(p.y*7.),2.)*.5,p.y*7.);
- vec2 edge=min(fract(brick),1.-fract(brick));
- float mortar=smoothstep(.015,.065,min(edge.x,edge.y));
- float light=exp(-dot(p-vec2(0.,-.3),p-vec2(0.,-.3))*1.7)*flicker;
- col+=vec3(.12,.045,.018)*light*(.35+.65*mortar);
- float box=1.-smoothstep(.015,.035,max(abs(p.x)-.82,abs(p.y+.03)-.82));
- col=mix(col,vec3(.004,.0015,.001)+vec3(.13,.025,.003)*light,box);
- float y=p.y+.63;
- if(box>0. && y>0.){
-  float height=.95+energy*.32;
-  vec2 q=vec2(p.x*3.8,y*3.2-t*1.65);
-  float n=turbulence(q);
-  float bend=sin(y*6.-t*2.)*.065*y+(.5-n)*.22*y;
-  float width=max(.015,(1.-y/height)*.60);
-  float shape=1.-abs(p.x+bend)/width;
-  float heat=shape+n*.9-y/height*.75;
-  float fade=(1.-smoothstep(height*.65,height*1.3,y))*smoothstep(0.,.055,y);
-  float flame=smoothstep(.12,.46,heat)*fade;
-  vec3 fire=mix(vec3(1.25,.065,.002),vec3(2.8,.65,.025),smoothstep(.25,.85,heat));
-  fire=mix(fire,vec3(3.3,1.65,.32),smoothstep(.85,1.45,heat)*(1.-smoothstep(.1,.6,y)));
-  col+=fire*flame*flicker;
+ vec2 uv=clamp(p*.5+.5,0.,1.);
+ vec3 hearth=texture2D(uHearth,uv).rgb;
+ float border=1.-smoothstep(.94,1.02,max(abs(p.x),abs(p.y)));
+ vec3 col=hearth*(.78+flicker*.28+energy*.18)*border;
+ float y=p.y+.48;
+ // Shared rising turbulence distorts five independently moving flame tongues.
+ if(abs(p.x)<.83 && y>0. && y<1.4){
+  float n=turbulence(vec2(p.x*6.,y*4.-t*1.8));
+  float detail=noise(vec2(p.x*21.,y*12.-t*3.5));
+  float heat=0.;
+  for(int i=0;i<5;i++){
+   float k=float(i),seed=hash(vec2(k,3.));
+   float h=(.55+seed*.45+energy*.24)*(.86+.14*sin(t*(1.8+seed)+k*2.));
+   float rise=y/h;
+   float center=(k-2.)*.22+sin(y*7.-t*(1.6+seed)+k)*y*.12+(n-.5)*y*.38;
+   float width=(.13+seed*.05)*max(.01,1.-rise);
+   float body=1.-abs(p.x-center)/width+(n-.5)*1.8;
+   float tongue=smoothstep(-.3,.65,body)*(1.-smoothstep(.55,1.05,rise));
+   heat+=tongue*(.55+.45*detail);
+  }
+  float root=smoothstep(0.,.09,y);
+  float wisps=smoothstep(.05,.45,heat);
+  vec3 fire=mix(vec3(.85,.035,.001),vec3(2.2,.48,.012),clamp(heat,0.,1.));
+  fire=mix(fire,vec3(2.7,1.25,.19),smoothstep(.9,1.9,heat));
+  col+=fire*wisps*root*flicker;
   // Twelve seeded sparks, independent of framerate and without a particle pool.
   if(uEmbers>0.) for(int i=0;i<12;i++){
    float k=float(i),seed=hash(vec2(k,7.)),age=fract(t*(.13+seed*.12)+seed);
-   vec2 pos=vec2((seed-.5)*1.05+sin(age*9.+k)*age*.13,-.55+age*1.45);
+   vec2 pos=vec2((seed-.5)*1.05+sin(age*9.+k)*age*.13,-.46+age*1.45);
    vec2 d=(p-pos)/vec2(.007,.018);
    col+=vec3(1.8,.42,.025)*exp(-dot(d,d))*sin(age*PI)*(0.35+uTreble*uReactivity)*uEmbers;
   }
  }
- // Three charred logs with glowing fissures, in front of the flame roots.
- for(int i=0;i<3;i++){
-  float k=float(i);
-  vec2 q=rot((k-1.)*.23)*(p-vec2((k-1.)*.19,-.66+mod(k,2.)*.07));
-  float d=length(vec2(max(abs(q.x)-.36,0.),q.y))-.075;
-  float mask=1.-smoothstep(-.008,.008,d);
-  float grain=noise(vec2(q.x*27.+k*13.,q.y*85.));
-  float cracks=pow(max(0.,1.-abs(grain-.48)*9.),3.);
-  vec3 wood=vec3(.025,.008,.003)+vec3(.9,.095,.004)*cracks*(.4+energy)*flicker;
-  wood+=vec3(.22,.035,.002)*smoothstep(-.025,.075,q.y);
-  col=mix(col,wood,mask);
- }
- col+=vec3(.24,.035,.002)*exp(-pow((p.y+.8)*20.,2.)-p.x*p.x*3.)*flicker;
+ // Texture supplies real bark and ash detail; warm pixels receive ember pulses.
+ float coals=(1.-smoothstep(-.55,-.42,p.y))*smoothstep(.03,.25,hearth.r-hearth.g);
+ col+=hearth*vec3(.7,.25,.06)*coals*(.65+energy)*flicker*border;
  col*=uIntensity*(1.-smoothstep(.8,2.1,length(p))*.75);
  gl_FragColor=vec4(col,1.);
 }`;
@@ -72,7 +66,11 @@ export class FireplaceModule extends ShaderModule {
   readonly id = "fireplace";
   readonly name = "Fireplace";
   params = { speed: 1, intensity: 1.2, reactivity: 1, embers: 1 };
+  private texture?: T.Texture;
+  private loading?: Promise<void>;
+  private disposed = false;
   private readonly extra = {
+    uHearth: { value: null as T.Texture | null },
     uIntensity: { value: 1.2 },
     uReactivity: { value: 1 },
     uEmbers: { value: 1 },
@@ -84,11 +82,36 @@ export class FireplaceModule extends ShaderModule {
     });
     this.resize(width, height);
   }
+  override prepare(renderer: T.WebGLRenderer) {
+    return (this.loading ??= new T.TextureLoader()
+      .loadAsync(hearthUrl)
+      .then(async (texture) => {
+        if (this.disposed) {
+          texture.dispose();
+          return;
+        }
+        texture.colorSpace = T.SRGBColorSpace;
+        texture.generateMipmaps = false;
+        texture.minFilter = texture.magFilter = T.LinearFilter;
+        this.texture = texture;
+        this.extra.uHearth.value = texture;
+        await super.prepare(renderer);
+      })
+      .catch((error) => {
+        this.loading = undefined;
+        throw error;
+      }));
+  }
   override update(audio: AudioFrameData, time: number, dt: number) {
     super.update(audio, time, dt);
     this.uniforms.uTime.value = time * this.params.speed;
     this.extra.uIntensity.value = this.params.intensity;
     this.extra.uReactivity.value = this.params.reactivity;
     this.extra.uEmbers.value = this.params.embers;
+  }
+  override dispose() {
+    this.disposed = true;
+    this.texture?.dispose();
+    super.dispose();
   }
 }

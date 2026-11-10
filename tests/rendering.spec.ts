@@ -50,7 +50,8 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       // Beat-driven deformation must also work with ambient warp disabled.
       if (scene instanceof HubbleAcidModule) scene.params.warp = 0;
       scene.init(renderer, 128, 80);
-      if (scene instanceof HumanHeartModule) await scene.prepare(renderer);
+      if (scene instanceof HumanHeartModule || scene instanceof FireplaceModule)
+        await scene.prepare(renderer);
       for (const [w, h] of [
         [128, 80],
         [80, 128],
