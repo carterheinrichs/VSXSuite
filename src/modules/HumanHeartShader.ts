@@ -44,7 +44,7 @@ float cavities(vec3 p){
  vec3 right=p-vec3(-.25,.01,.29);right.xy=rot(.18)*right.xy;
  // Unequal chambers and an intact muscular septum; shallow trabecular relief.
  float d=min(ellipsoid(left,vec3(.225,.48,.40)),ellipsoid(right,vec3(.195,.35,.37)));
- float ridges=sin(p.y*39.+noise(p*13.)*7.+p.z*23.)*sin(p.x*29.+p.z*37.+noise(p*21.)*3.);
+ float ridges=p.z<.35 ? sin(p.y*39.+noise(p*13.)*7.+p.z*23.)*sin(p.x*29.+p.z*37.+noise(p*21.)*3.) : 0.;
  return d+ridges*.003*(1.-smoothstep(.12,.35,p.z));
 }
 // Thin scalloped leaflets fold back toward their annulus during filling.
@@ -87,11 +87,18 @@ float muscle(vec3 p){
  }
  return d;
 }
-float anatomy(vec3 p){float d=muscle(p);if(uCutaway>.5)d=min(d,valves(p));return d;}
+float anatomy(vec3 p){
+ float d=muscle(p);
+ if(uCutaway>.5){
+  vec3 vb=max(abs(p-vec3(-.025,.05,.08))-vec3(.38,.35,.20),0.);
+  if(d>=length(vb))d=min(d,valves(p));
+ }
+ return d;
+}
 float map(vec3 p){return anatomy(local(p));}
 float shadow(vec3 p,vec3 light){
  float visibility=1.,t=.018;
- for(int i=0;i<12;i++){float d=map(p+light*t);visibility=min(visibility,12.*d/t);t+=clamp(d,.022,.11);if(t>.85)break;}
+ for(int i=0;i<12;i++){float d=map(p+light*t);visibility=min(visibility,12.*d/t);if(visibility<=.08)break;t+=clamp(d,.022,.11);if(t>.85)break;}
  return clamp(visibility,.08,1.);
 }
 float vessels(vec3 p){
@@ -131,11 +138,14 @@ void main(){
  float closest=-dot(ro,rd);
  vec3 nearest=ro+rd*max(closest,0.);
  if(dot(nearest,nearest)<=2.25){
-  for(int i=0;i<112;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.72,.001);if(travel>6.)break;}
+  float chord=sqrt(max(2.25-dot(nearest,nearest),0.));
+  travel=max(closest-chord,0.);
+  float exitDist=closest+chord;
+  for(int i=0;i<88;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.72,.001);if(travel>exitDist)break;}
  }
  if(hit){
   vec2 e=vec2(.002,0.);vec3 n=normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));
-  vec3 q=local(p);vec3 vesselPoint=q;vesselPoint.z=.35;float vein=vessels(vesselPoint);
+  vec3 q=local(p);vec3 vesselPoint=q;vesselPoint.z=.35;float vein=uVessels>0. ? vessels(vesselPoint) : 10.;
   float lines=exp(-max(vein,0.)*160.)*uVessels;
   float grain=tissue(q);
   float interior=uCutaway>.5 ? 1.-smoothstep(.003,.025,abs(cavities(q))) : 0.;
