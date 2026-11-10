@@ -41,6 +41,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     ]) {
       const scene = new Module();
       scene.init(renderer, 128, 80);
+      if (scene instanceof HumanHeartModule) await scene.prepare(renderer);
       for (const [w, h] of [
         [128, 80],
         [80, 128],
