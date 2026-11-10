@@ -98,7 +98,7 @@ float anatomy(vec3 p){
 float map(vec3 p){return anatomy(local(p));}
 float shadow(vec3 p,vec3 light){
  float visibility=1.,t=.018;
- for(int i=0;i<12;i++){float d=map(p+light*t);visibility=min(visibility,12.*d/t);if(visibility<=.08)break;t+=clamp(d,.022,.11);if(t>.85)break;}
+ for(int i=0;i<8;i++){float d=map(p+light*t);visibility=min(visibility,12.*d/t);if(visibility<=.08)break;t+=clamp(d,.035,.14);if(t>.85)break;}
  return clamp(visibility,.08,1.);
 }
 float vessels(vec3 p){
@@ -141,7 +141,7 @@ void main(){
   float chord=sqrt(max(2.25-dot(nearest,nearest),0.));
   travel=max(closest-chord,0.);
   float exitDist=closest+chord;
-  for(int i=0;i<88;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.72,.001);if(travel>exitDist)break;}
+  for(int i=0;i<72;i++){p=ro+rd*travel;float d=map(p);if(d<.0012){hit=true;break;}travel+=max(d*.75,.001);if(travel>exitDist)break;}
  }
  if(hit){
   vec2 e=vec2(.002,0.);vec3 n=normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));

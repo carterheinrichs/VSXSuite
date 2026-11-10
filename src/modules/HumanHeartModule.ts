@@ -42,9 +42,14 @@ export class HumanHeartModule extends ShaderModule {
     })) {
       if (typeof uniform.value === "number") values[name] = uniform.value;
     }
+    const rawW = this.uniforms.uResolution.value.x || 1;
+    const rawH = this.uniforms.uResolution.value.y || 1;
+    const scale = Math.min(1, Math.sqrt((480 * 270) / (rawW * rawH)));
+    const width = Math.max(1, Math.round(rawW * scale));
+    const height = Math.max(1, Math.round(rawH * scale));
     return {
-      width: this.uniforms.uResolution.value.x,
-      height: this.uniforms.uResolution.value.y,
+      width,
+      height,
       uniforms: values,
     };
   }
