@@ -1,6 +1,7 @@
 import { HubbleAcidModule } from "../modules/HubbleAcidModule";
 import { HubbleNebulaModule } from "../modules/HubbleNebulaModule";
 import { HumanHeartModule } from "../modules/HumanHeartModule";
+import { FireplaceModule } from "../modules/FireplaceModule";
 import { RecursiveChromeModule } from "../modules/RecursiveChromeModule";
 import { EvolvingAtmosphereModule } from "../modules/EvolvingAtmosphereModule";
 import * as T from "three";
@@ -84,6 +85,7 @@ export class VisualizerHost {
     new HarmonicWavesModule(),
     new RadialSpectrumModule(),
     new RetroPlasmaModule(),
+    new FireplaceModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {

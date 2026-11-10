@@ -26,6 +26,8 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     const { HumanHeartModule } =
       await import("/src/modules/HumanHeartModule.ts");
     // @ts-expect-error Vite serves source modules to the integration browser.
+    const { FireplaceModule } = await import("/src/modules/FireplaceModule.ts");
+    // @ts-expect-error Vite serves source modules to the integration browser.
     const { HubbleAcidModule } =
       await import("/src/modules/HubbleAcidModule.ts");
     const renderer = new T.WebGLRenderer();
@@ -42,6 +44,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       HubbleNebulaModule,
       HubbleAcidModule,
       HumanHeartModule,
+      FireplaceModule,
     ]) {
       const scene = new Module();
       // Beat-driven deformation must also work with ambient warp disabled.
@@ -131,6 +134,25 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
             scene.params.reactivity = 1;
           }
         }
+        if (scene instanceof FireplaceModule) {
+          const memory = { ...renderer.info.memory };
+          for (let step = 1; step <= 12; step++) {
+            scene.update(frame, step / 30, 1 / 30);
+            scene.render(renderer, target, read);
+            if (renderer.info.render.calls !== 1)
+              throw new Error("Fireplace must use a single draw call");
+          }
+          if (JSON.stringify(renderer.info.memory) !== JSON.stringify(memory))
+            throw new Error(
+              "Fireplace allocated GPU resources during playback",
+            );
+          scene.update(frame, 0, 0);
+          scene.render(renderer, target, read);
+          const repeated = new Uint8Array(active.length);
+          renderer.readRenderTargetPixels(target, 0, 0, w, h, repeated);
+          if (!repeated.every((value, index) => value === active[index]))
+            throw new Error("Fireplace did not repeat after rewind");
+        }
         let lit = 0,
           changed = 0,
           min = 255,
@@ -183,9 +205,12 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       // its outer wall and great vessels deliberately remain still.
       result.id === "recursive-chrome"
         ? 0.65
-        : result.id === "human-heart"
-          ? result.lit * 0.1
-          : 0.1,
+        : result.id === "fireplace"
+          ? // The brick surround stays still; only the fire and coals react.
+            0.05
+          : result.id === "human-heart"
+            ? result.lit * 0.1
+            : 0.1,
     );
     expect(result.contrast, result.id).toBeGreaterThan(30);
     expect(result.opaque, result.id).toBe(true);
