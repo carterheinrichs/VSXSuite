@@ -301,9 +301,6 @@ export class FunctionStageModule extends DrawingModule {
       }
       c.stroke();
     });
-    c.font = `${Math.max(10, h * 0.021)}px sans-serif`;
-    c.fillStyle = "#b0bfd8";
-    c.fillText(this.params.status, 14, 24, Math.max(1, w - 28));
     return true;
   }
 }
