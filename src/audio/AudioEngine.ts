@@ -57,6 +57,7 @@ export class AudioEngine {
   private stream: MediaStream | null = null;
   private armed = true;
   private average = 0.1;
+  private lowEnvelope = 0;
   private lastBeat = -1;
   private livePeriod = 0;
   private generation = 0;
@@ -197,6 +198,7 @@ export class AudioEngine {
   private resetAnalysis() {
     this.armed = true;
     this.average = 0.1;
+    this.lowEnvelope = 0;
     this.lastBeat = -1;
     this.livePeriod = 0;
     const f = this.frame;
@@ -368,6 +370,7 @@ export class AudioEngine {
       this.lastBeat = -1;
       this.livePeriod = 0;
       this.armed = true;
+      this.lowEnvelope = 0;
     }
     const f = this.frame;
     if (offline) {
@@ -422,9 +425,14 @@ export class AudioEngine {
     f.highMid = follow(f.highMid, this.band(2000, 6000, hz), attack, release);
     f.treble = follow(f.treble, this.band(6000, 20000, hz), attack, release);
     const low = this.band(20, 180, hz);
+    // A new kick can rise above a sustained bass bed without ever crossing
+    // the old gate's release threshold. Detect that local attack as well as
+    // isolated peaks above the long-term average.
+    const onset =
+      low > Math.max(0.15, this.lowEnvelope + 0.025) &&
+      low > this.lowEnvelope * 1.06;
     f.kick =
-      this.armed &&
-      low > Math.max(0.15, this.average * 1.35) &&
+      ((this.armed && low > Math.max(0.15, this.average * 1.35)) || onset) &&
       time - this.lastBeat > 0.24;
     if (f.kick) {
       const interval = time - this.lastBeat;
@@ -439,6 +447,7 @@ export class AudioEngine {
     } else f.beat *= Math.exp(-dt * 7);
     if (low < Math.max(0.12, this.average * 1.1)) this.armed = true;
     this.average += (low - this.average) * (1 - Math.exp(-dt * 2));
+    this.lowEnvelope += (low - this.lowEnvelope) * (1 - Math.exp(-dt * 25));
     const buffer = offline?.buffer ?? this.buffer;
     const tempo = buffer ? songTempo(buffer) : null;
     const position = offline

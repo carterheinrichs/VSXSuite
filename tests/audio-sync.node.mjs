@@ -180,6 +180,52 @@ test("DSP beat gate re-arms automatically when time rewinds to zero", () => {
   engine.dispose();
 });
 
+test("successive kicks retain full strength over sustained bass after adaptation", () => {
+  for (const fps of [30, 60, 120]) {
+    const engine = new AudioEngine();
+    let level = 150;
+    const input = {
+      buffer: buffer(),
+      getByteFrequencyData: (a) => a.fill(level),
+      getByteTimeDomainData: (a) => a.fill(160),
+    };
+    const hits = [];
+    for (let i = 0; i < fps * 8; i++) {
+      const time = i / fps;
+      const phase = i % (fps / 2);
+      level = phase < Math.ceil(fps * 0.06) ? 210 : 150;
+      engine.update(time, 1 / fps, input);
+      if (engine.frame.kick) {
+        hits.push(time);
+        assert.equal(
+          engine.frame.beat,
+          1,
+          "every detected kick has a full attack",
+        );
+      }
+    }
+    assert.equal(hits.length, 16, `${fps} FPS: no missed or extra kicks`);
+    hits.forEach((time, index) => assert.equal(time, index * 0.5));
+    engine.dispose();
+  }
+});
+
+test("sustained bass does not produce repeated false kicks", () => {
+  const engine = new AudioEngine();
+  const input = {
+    buffer: buffer(),
+    getByteFrequencyData: (a) => a.fill(180),
+    getByteTimeDomainData: (a) => a.fill(160),
+  };
+  let kicks = 0;
+  for (let i = 0; i < 600; i++) {
+    engine.update(i / 60, 1 / 60, input);
+    if (engine.frame.kick) kicks++;
+  }
+  assert.equal(kicks, 1);
+  engine.dispose();
+});
+
 test("transportState transitions cleanly from idle to playing, paused, and stopped", () => {
   const engine = new AudioEngine();
   assert.equal(engine.transportState, "idle");
