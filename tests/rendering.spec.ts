@@ -47,6 +47,7 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       // Beat-driven deformation must also work with ambient warp disabled.
       if (scene instanceof HubbleAcidModule) scene.params.warp = 0;
       scene.init(renderer, 128, 80);
+      if (scene instanceof HumanHeartModule) await scene.prepare(renderer);
       for (const [w, h] of [
         [128, 80],
         [80, 128],
@@ -178,12 +179,12 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
           : 0.15,
     );
     expect(result.changed, result.id).toBeGreaterThan(
-      // Require a substantial part of the lit sculpture to react; its dark
-      // surroundings deliberately do not flash or change color with music.
+      // The cutaway heart reacts only in its valves and chamber interiors;
+      // its outer wall and great vessels deliberately remain still.
       result.id === "recursive-chrome"
         ? 0.65
         : result.id === "human-heart"
-          ? result.lit * 0.3
+          ? result.lit * 0.1
           : 0.1,
     );
     expect(result.contrast, result.id).toBeGreaterThan(30);

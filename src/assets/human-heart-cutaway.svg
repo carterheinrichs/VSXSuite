@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1140" viewBox="0 0 600 760">
+ <defs>
+  <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ecb69d"/><stop offset=".35" stop-color="#c8766b"/><stop offset=".75" stop-color="#8a3c48"/><stop offset="1" stop-color="#532f3f"/></linearGradient>
+  <linearGradient id="artery"><stop stop-color="#944952"/><stop offset=".45" stop-color="#edb3a0"/><stop offset="1" stop-color="#b76563"/></linearGradient>
+  <linearGradient id="vein"><stop stop-color="#35455e"/><stop offset=".5" stop-color="#a5b6bd"/><stop offset="1" stop-color="#597187"/></linearGradient>
+  <radialGradient id="chamber"><stop stop-color="#5f2b3d"/><stop offset=".7" stop-color="#351f32"/><stop offset="1" stop-color="#201b2a"/></radialGradient>
+ </defs>
+ <!-- An illustrative anterior cutaway: a stable wall, separated chambers,
+      visible AV valve rings and great vessels. Motion is composited separately. -->
+ <g stroke="#422937" stroke-width="3" stroke-linejoin="round">
+  <path fill="url(#vein)" d="M148 336 L146 150 Q166 136 191 148 L207 329Z"/>
+  <ellipse cx="168" cy="149" rx="22" ry="9" fill="#26374e"/>
+  <path fill="url(#artery)" d="M265 332 L254 180 C242 113 299 81 353 99 C411 111 437 172 410 249 L365 238 C383 188 377 153 347 147 C311 138 302 160 310 202 L323 331Z"/>
+  <path fill="url(#artery)" d="M281 133 L273 62 Q289 51 305 59 L318 118Z M326 111 L331 39 Q348 29 364 40 L362 121Z M371 124 L394 64 Q412 59 426 76 L402 153Z"/>
+  <path fill="url(#vein)" d="M298 339 C295 273 324 230 360 210 C404 187 443 192 478 177 L492 218 C453 240 416 232 386 252 C359 273 361 311 354 352Z"/>
+  <path fill="url(#artery)" d="M417 307 L478 275 L496 302 L435 340Z M428 349 L491 331 L500 360 L444 380Z"/>
+  <path fill="url(#wall)" d="M240 286 C289 270 350 290 390 322 C450 333 479 391 470 466 C458 550 410 632 334 706 C316 724 296 717 278 702 C219 666 167 617 134 565 C99 515 96 469 119 415 C139 355 186 315 240 286Z"/>
+  <path fill="url(#wall)" d="M246 293 C209 259 164 271 141 308 C114 342 120 373 147 392 L198 363Z M348 295 C366 256 403 269 419 294 L440 338 L418 360Z"/>
+ </g>
+ <g fill="url(#chamber)" stroke="#f1bca1" stroke-width="5">
+  <path d="M237 313 C205 296 166 319 157 350 C153 368 172 379 192 379 L251 371 C266 355 259 327 237 313Z"/>
+  <path d="M338 309 C369 288 407 319 419 347 C422 362 403 377 377 375 L315 368 C306 348 318 323 338 309Z"/>
+  <path d="M188 390 C154 403 139 442 153 493 C171 550 213 604 269 648 C251 595 240 551 246 504 C251 459 264 410 249 392Z"/>
+  <path d="M323 390 C300 417 291 463 303 518 C313 569 324 615 323 670 C388 607 428 534 439 467 C449 414 414 392 390 388Z"/>
+ </g>
+ <!-- Muscular septum and trabecular relief keep the two ventricles distinct. -->
+ <g fill="none" stroke-linecap="round">
+  <path d="M279 378 C284 434 267 474 278 525 C292 582 302 637 313 680" stroke="#efb49c" stroke-width="13"/>
+  <path d="M162 452 L185 464 L177 487 L201 505 L195 528 L224 554 M174 431 L194 439 M214 569 L243 591 M430 440 L407 459 L419 476 L395 500 L399 524 L374 548 M424 418 L405 428 M364 571 L345 588" stroke="#b97770" stroke-width="5"/>
+  <path d="M200 383 L220 466 M214 383 L229 465 M238 382 L228 465 M340 383 L348 472 M357 383 L354 471 M377 383 L355 472" stroke="#e3c7b1" stroke-width="2"/>
+  <path d="M220 484 L226 457 L236 484 M342 489 L351 463 L362 490" stroke="#d69d89" stroke-width="8"/>
+  <path d="M145 414 Q116 484 159 546 M453 399 Q476 452 448 515 M345 655 L327 684" stroke="#f5d4b8" stroke-width="2" opacity=".7"/>
+ </g>
+ <g fill="#372333" stroke="#f2d1af" stroke-width="6">
+  <ellipse cx="220" cy="382" rx="39" ry="19"/>
+  <ellipse cx="353" cy="382" rx="40" ry="19"/>
+ </g>
+ <g fill="none" stroke="#eed2b8" stroke-width="2" opacity=".45">
+  <path d="M275 174 Q268 130 309 121 M337 112 L341 52 M380 149 L404 80 M330 260 Q351 236 375 231 M160 324 Q185 298 209 310"/>
+ </g>
+</svg>
