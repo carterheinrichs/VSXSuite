@@ -21,6 +21,7 @@ export class AudioEngine {
   readonly history = new Uint8Array(WIDTH * HISTORY);
   private readonly spectrum = this.bytes.subarray(0, WIDTH);
   private readonly waveform = this.bytes.subarray(WIDTH);
+  private readonly previousSpectrum = new Uint8Array(WIDTH);
   readonly texture = new T.DataTexture(
     this.bytes,
     WIDTH,
@@ -46,6 +47,9 @@ export class AudioEngine {
     centroid: 0,
     beat: 0,
     kick: false,
+    lowAttack: 0,
+    midAttack: 0,
+    highAttack: 0,
     uAudioTexture: this.texture,
     uAudioHistoryTexture: this.historyTexture,
   };
@@ -57,6 +61,7 @@ export class AudioEngine {
   private stream: MediaStream | null = null;
   private armed = true;
   private average = 0.1;
+  private lowEnvelope = 0;
   private lastBeat = -1;
   private livePeriod = 0;
   private generation = 0;
@@ -197,12 +202,15 @@ export class AudioEngine {
   private resetAnalysis() {
     this.armed = true;
     this.average = 0.1;
+    this.lowEnvelope = 0;
     this.lastBeat = -1;
     this.livePeriod = 0;
     const f = this.frame;
     f.subBass = f.bass = f.lowMid = f.mid = f.highMid = f.treble = 0;
     f.rms = f.centroid = f.beat = 0;
     f.kick = false;
+    f.lowAttack = f.midAttack = f.highAttack = 0;
+    this.previousSpectrum.fill(0);
     f.bpm = f.beatPhase = undefined;
     this.bytes.fill(0);
     this.waveform.fill(128);
@@ -368,6 +376,9 @@ export class AudioEngine {
       this.lastBeat = -1;
       this.livePeriod = 0;
       this.armed = true;
+      this.lowEnvelope = 0;
+      this.previousSpectrum.fill(0);
+      this.frame.lowAttack = this.frame.midAttack = this.frame.highAttack = 0;
     }
     const f = this.frame;
     if (offline) {
@@ -405,14 +416,48 @@ export class AudioEngine {
     const release = 1 - Math.exp(-dt * 12);
     let energy = 0,
       weighted = 0,
-      rms = 0;
+      rms = 0,
+      lowFlux = 0,
+      midFlux = 0,
+      highFlux = 0,
+      lowBins = 0,
+      midBins = 0,
+      highBins = 0;
     for (let i = 0; i < WIDTH; i++) {
       const v = this.spectrum[i] / 255;
+      // Positive spectral change responds on this frame, without waiting for
+      // the kick gate or the smoothed volume to reach a threshold.
+      const rise = Math.max(0, v - this.previousSpectrum[i] / 255);
+      const frequency = i * hz;
+      if (frequency >= 20 && frequency < 250) {
+        lowFlux += rise;
+        lowBins++;
+      } else if (frequency >= 250 && frequency < 4000) {
+        midFlux += rise;
+        midBins++;
+      } else if (frequency >= 4000 && frequency < 16000) {
+        highFlux += rise;
+        highBins++;
+      }
+      this.previousSpectrum[i] = this.spectrum[i];
       energy += v;
       weighted += v * i;
       const wave = (this.waveform[i] - 128) / 128;
       rms += wave * wave;
     }
+    const decay = Math.exp(-dt * 18);
+    f.lowAttack = Math.max(
+      (f.lowAttack ?? 0) * decay,
+      Math.min(1, (lowFlux / Math.max(1, lowBins)) * 8),
+    );
+    f.midAttack = Math.max(
+      (f.midAttack ?? 0) * decay,
+      Math.min(1, (midFlux / Math.max(1, midBins)) * 8),
+    );
+    f.highAttack = Math.max(
+      (f.highAttack ?? 0) * decay,
+      Math.min(1, (highFlux / Math.max(1, highBins)) * 8),
+    );
     f.rms = follow(f.rms, Math.sqrt(rms / WIDTH), attack, release);
     f.centroid = energy > 0 ? weighted / (energy * (WIDTH - 1)) : 0;
     f.subBass = follow(f.subBass, this.band(20, 60, hz), attack, release);
@@ -422,10 +467,15 @@ export class AudioEngine {
     f.highMid = follow(f.highMid, this.band(2000, 6000, hz), attack, release);
     f.treble = follow(f.treble, this.band(6000, 20000, hz), attack, release);
     const low = this.band(20, 180, hz);
+    // A new kick can rise above a sustained bass bed without ever crossing
+    // the old gate's release threshold. Detect that local attack as well as
+    // isolated peaks above the long-term average.
+    const onset =
+      low > Math.max(0.15, this.lowEnvelope + 0.025) &&
+      low > this.lowEnvelope * 1.06;
     f.kick =
-      this.armed &&
-      low > Math.max(0.15, this.average * 1.35) &&
-      time - this.lastBeat > 0.24;
+      ((this.armed && low > Math.max(0.15, this.average * 1.35)) || onset) &&
+      time - this.lastBeat > 0.12;
     if (f.kick) {
       const interval = time - this.lastBeat;
       if (this.lastBeat >= 0 && interval >= 1 / 3 && interval <= 1) {
@@ -439,6 +489,7 @@ export class AudioEngine {
     } else f.beat *= Math.exp(-dt * 7);
     if (low < Math.max(0.12, this.average * 1.1)) this.armed = true;
     this.average += (low - this.average) * (1 - Math.exp(-dt * 2));
+    this.lowEnvelope += (low - this.lowEnvelope) * (1 - Math.exp(-dt * 25));
     const buffer = offline?.buffer ?? this.buffer;
     const tempo = buffer ? songTempo(buffer) : null;
     const position = offline

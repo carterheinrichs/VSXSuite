@@ -25,6 +25,9 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
     // @ts-expect-error Vite serves source modules to the integration browser.
     const { HumanHeartModule } =
       await import("/src/modules/HumanHeartModule.ts");
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const { HubbleAcidModule } =
+      await import("/src/modules/HubbleAcidModule.ts");
     const renderer = new T.WebGLRenderer();
     const audio = new AudioEngine();
     const frame = audio.update(0, 0);
@@ -37,9 +40,12 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
       modules.TopographicContoursModule,
       RecursiveChromeModule,
       HubbleNebulaModule,
+      HubbleAcidModule,
       HumanHeartModule,
     ]) {
       const scene = new Module();
+      // Beat-driven deformation must also work with ambient warp disabled.
+      if (scene instanceof HubbleAcidModule) scene.params.warp = 0;
       scene.init(renderer, 128, 80);
       for (const [w, h] of [
         [128, 80],
@@ -69,9 +75,61 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
           frame.beat =
             0.8;
         frame.kick = true;
+        // Isolate the detected onset: Hubble must visibly hit even without
+        // sustained bass, RMS or treble driving unrelated brightness changes.
+        if (scene instanceof HubbleAcidModule) {
+          frame.subBass = frame.bass = frame.mid = frame.treble = frame.rms = 0;
+          frame.beat = 1;
+        }
         scene.update(frame, 0, 0);
         scene.render(renderer, target, read);
         renderer.readRenderTargetPixels(target, 0, 0, w, h, active);
+        if (scene instanceof HubbleAcidModule) {
+          scene.params.reactivity = 0;
+          scene.update(frame, 0, 0);
+          scene.render(renderer, target, read);
+          const unreactive = new Uint8Array(w * h * 4);
+          renderer.readRenderTargetPixels(target, 0, 0, w, h, unreactive);
+          if (!unreactive.every((value, index) => value === silent[index])) {
+            throw new Error(
+              "Hubble Acid still responds with reactivity disabled",
+            );
+          }
+          scene.params.reactivity = 1;
+          frame.beat = 0;
+          for (const attack of [
+            "lowAttack",
+            "midAttack",
+            "highAttack",
+          ] as const) {
+            frame[attack] = 1;
+            scene.update(frame, 0, 0);
+            scene.render(renderer, target, read);
+            renderer.readRenderTargetPixels(target, 0, 0, w, h, unreactive);
+            let changedPixels = 0;
+            for (let i = 0; i < unreactive.length; i += 4) {
+              if (
+                Math.abs(unreactive[i] - silent[i]) +
+                  Math.abs(unreactive[i + 1] - silent[i + 1]) +
+                  Math.abs(unreactive[i + 2] - silent[i + 2]) >
+                6
+              )
+                changedPixels++;
+            }
+            if (changedPixels < w * h * 0.02) {
+              throw new Error(`Hubble Acid missed isolated ${attack}`);
+            }
+            scene.params.reactivity = 0;
+            scene.update(frame, 0, 0);
+            scene.render(renderer, target, read);
+            renderer.readRenderTargetPixels(target, 0, 0, w, h, unreactive);
+            if (!unreactive.every((value, index) => value === silent[index])) {
+              throw new Error(`Hubble Acid cannot disable ${attack}`);
+            }
+            frame[attack] = 0;
+            scene.params.reactivity = 1;
+          }
+        }
         let lit = 0,
           changed = 0,
           min = 255,

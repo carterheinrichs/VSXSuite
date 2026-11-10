@@ -1,3 +1,4 @@
+import { HubbleAcidModule } from "../modules/HubbleAcidModule";
 import { HubbleNebulaModule } from "../modules/HubbleNebulaModule";
 import { HumanHeartModule } from "../modules/HumanHeartModule";
 import { RecursiveChromeModule } from "../modules/RecursiveChromeModule";
@@ -76,6 +77,7 @@ export class VisualizerHost {
     new StarfieldModule(),
     new HubbleNebulaModule(),
     new HumanHeartModule(),
+    new HubbleAcidModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {

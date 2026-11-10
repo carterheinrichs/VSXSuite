@@ -24,9 +24,9 @@ try {
   for (const id of ids.filter(
     (id) => !process.env.THUMBNAIL_SCENE || id === process.env.THUMBNAIL_SCENE,
   )) {
-    const data = await page.evaluate((id) => {
+    const data = await page.evaluate(async (id) => {
       const { host, audio, canvas } = window.thumbnailScene;
-      host.select(id);
+      await host.select(id);
       for (let frame = 0; frame < 90; frame++) {
         const time = frame / 30;
         const pulse = Math.exp(-((time * 2) % 1) * 5);
