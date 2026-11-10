@@ -19,13 +19,15 @@ float fbm(vec2 p){
  return n;
 }
 void main(){
- float bass=uBass*uReactivity,beat=uBeat*uReactivity;
+ // Leave attack detection immediate; soften only this scene's visual gain.
+ float response=uReactivity*.8;
+ float bass=uBass*response,beat=uBeat*response;
  // Keep texture travel independent of the decaying beat envelope: adding
  // that envelope to time makes the animation run backwards after every hit.
  float t=uTime*.12;
- float hit=max(clamp(uBeat,0.,1.),uLowAttack)*uReactivity;
- float mid=uMid*uReactivity,treble=uTreble*uReactivity;
- float snap=uMidAttack*uReactivity,shimmer=uHighAttack*uReactivity;
+ float hit=max(clamp(uBeat,0.,1.),uLowAttack)*response;
+ float mid=uMid*response,treble=uTreble*response;
+ float snap=uMidAttack*response,shimmer=uHighAttack*response;
  float warp=uWarp+hit*1.1+bass*.35+snap*.55;
  vec2 sky=(vUv-.5)*vec2(uResolution.x/uResolution.y,1.)*2.6;
  vec2 p=rot(.28+.06*sin(t*.4)+hit*.045)*sky/(1.+bass*.08+hit*.14)*vec2(.87,1.12);
@@ -40,7 +42,7 @@ void main(){
  float filaments=pow(.5+.5*sin(r*95.+tendrils*18.-t*2.+warp*sin(a*9.+t)*2.+mid*.8),6.);
  // atan wraps from +PI to -PI. All angular colour and spectrum inputs
  // must close around the circle so the wrap cannot cut a visible wedge.
- float band=fft(.5+.5*sin(a))*uReactivity;
+ float band=fft(.5+.5*sin(a))*response;
  vec3 gas=mix(vec3(.025,.55,1.),vec3(1.,.16,.035),smoothstep(.59,.95,r));
  gas=mix(gas,palette(r*1.8+grain*.5+.22*sin(a)+.13*cos(a)-t*.18+uHue),.7);
  vec3 col=vec3(.002,.003,.013);
