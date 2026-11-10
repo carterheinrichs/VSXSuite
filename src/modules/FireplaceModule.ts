@@ -9,7 +9,7 @@ import hearthUrl from "../assets/fireplace-hearth.webp?url";
 const fragment =
   common +
   `
-uniform float uIntensity,uReactivity,uEmbers;
+uniform float uIntensity,uReactivity,uEmbers,uOnset;
 uniform sampler2D uHearth;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){
@@ -22,7 +22,7 @@ void main(){
  vec2 p=(vUv-.5)*uResolution/min(uResolution.x,uResolution.y)*2.;
  float t=uTime;
  float energy=clamp((uBass*.85+uSub*.25+uRms*.35)*uReactivity,0.,1.5);
- float attack=clamp(uBeat*uReactivity,0.,1.5);
+ float attack=clamp(max(uBeat,uOnset)*uReactivity,0.,1.5);
  float flicker=.92+.08*sin(t*7.1)+.04*sin(t*11.7);
  vec2 uv=clamp(p*.5+.5,0.,1.);
  vec3 hearth=texture2D(uHearth,uv).rgb;
@@ -81,6 +81,7 @@ export class FireplaceModule extends ShaderModule {
     uIntensity: { value: 1.2 },
     uReactivity: { value: 1 },
     uEmbers: { value: 1 },
+    uOnset: { value: 0 },
   };
   init(_renderer: T.WebGLRenderer, width: number, height: number) {
     this.pass = new FullscreenPass(fragment, {
@@ -115,6 +116,16 @@ export class FireplaceModule extends ShaderModule {
     this.extra.uIntensity.value = this.params.intensity;
     this.extra.uReactivity.value = this.params.reactivity;
     this.extra.uEmbers.value = this.params.embers;
+    // Catch percussion outside the kick detector without stacking simultaneous
+    // hits or increasing the strength of the existing full beat response.
+    this.extra.uOnset.value = Math.min(
+      1,
+      Math.max(
+        (audio.lowAttack ?? 0) * 0.65,
+        (audio.midAttack ?? 0) * 0.4,
+        (audio.highAttack ?? 0) * 0.2,
+      ),
+    );
   }
   override dispose() {
     this.disposed = true;

@@ -153,6 +153,39 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
           renderer.readRenderTargetPixels(target, 0, 0, w, h, repeated);
           if (!repeated.every((value, index) => value === active[index]))
             throw new Error("Fireplace did not repeat after rewind");
+          const savedFrame = { ...frame };
+          frame.subBass =
+            frame.bass =
+            frame.mid =
+            frame.treble =
+            frame.rms =
+            frame.beat =
+              0;
+          frame.lowAttack = frame.midAttack = frame.highAttack = 0;
+          for (const attack of [
+            "lowAttack",
+            "midAttack",
+            "highAttack",
+          ] as const) {
+            frame[attack] = 1;
+            scene.update(frame, 0, 0);
+            scene.render(renderer, target, read);
+            renderer.readRenderTargetPixels(target, 0, 0, w, h, repeated);
+            let changed = 0;
+            for (let i = 0; i < repeated.length; i += 4)
+              if (Math.abs(repeated[i] - silent[i]) > 3) changed++;
+            if (changed < w * h * 0.005)
+              throw new Error(`Fireplace missed isolated ${attack}`);
+            scene.params.reactivity = 0;
+            scene.update(frame, 0, 0);
+            scene.render(renderer, target, read);
+            renderer.readRenderTargetPixels(target, 0, 0, w, h, repeated);
+            if (!repeated.every((value, index) => value === silent[index]))
+              throw new Error(`Fireplace cannot disable ${attack}`);
+            scene.params.reactivity = 1;
+            frame[attack] = 0;
+          }
+          Object.assign(frame, savedFrame);
         }
         let lit = 0,
           changed = 0,
