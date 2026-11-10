@@ -120,7 +120,7 @@ export class ViszSuiteUI {
               "retro-plasma",
             ].includes(id)
           ? "Classic"
-          : [3, 4, 5, 9, 10, 13, 14].includes(index)
+          : id === "function-stage" || [3, 4, 5, 9, 10, 13, 14].includes(index)
             ? "Geometric"
             : "Atmospheric";
     const renderLibrary = () => {
@@ -252,7 +252,12 @@ export class ViszSuiteUI {
       }
       for (const key of Object.keys(module.params)) {
         const value = module.params[key];
-        if (typeof value === "boolean") folder.addBinding(module.params, key);
+        if (module.controls?.[key])
+          folder.addBinding(module.params, key, module.controls[key]);
+        else if (typeof value === "string")
+          folder.addBinding(module.params, key);
+        else if (typeof value === "boolean")
+          folder.addBinding(module.params, key);
         else if (key === "waveCount")
           folder.addBinding(module.params, key, {
             label: "Waves",

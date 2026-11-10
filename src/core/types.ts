@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { BindingParams } from "tweakpane";
 export interface AudioFrameData {
   subBass: number;
   bass: number;
@@ -24,6 +25,7 @@ export interface IVisualModule {
   readonly id: string;
   readonly name: string;
   params: Record<string, any>;
+  controls?: Record<string, BindingParams>;
   init(renderer: THREE.WebGLRenderer, width: number, height: number): void;
   update(audioData: AudioFrameData, time: number, deltaTime: number): void;
   render(
