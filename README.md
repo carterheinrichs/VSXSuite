@@ -82,6 +82,8 @@ Choose **Text Stage** in the library, then expand its control rack folder. Edit 
 
 **Function Stage** plots one or two equations as `y = f(x)`. Toggle the second curve, set independent colors, adjust the horizontal half-range and center coordinates, and show or hide the labeled grid. Both axes use the same unit scale. For example, use `sin(x + t) * (1 + bass)` and `cos(2x - t) * (1 + treble)` for moving, music-reactive curves.
 
+For copy-and-paste ideas, see the **[Function Stage recipe book](docs/function-recipes.md)**: ten paired presets with suggested settings, visual descriptions, and mathematical sources. Start with **Twin tides** for flowing waves, **Liquid modulation** for twisting folds, or **Traveling wave packets** for moving bursts.
+
 Expressions support `+ - * / ^`, parentheses, implicit multiplication (`2x`), constants `pi` and `e`, and `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `abs`, `sqrt`, `exp`, `log` (base 10), `ln`, `floor`, and `ceil`. Variables are `x`, `t` (song time multiplied by Time speed), `bass`, `mid`, `treble`, `beat`, and `rms`. Music response scales the audio variables; zero disables audio modulation. Invalid equations show a message and leave the other curve running. Expressions are limited to 256 characters and 128 tokens and never execute JavaScript.
 
 Both scenes use the shared overlay, master FX, and export pipeline. Their canvas drawings are uploaded as textures capped at 1,536 pixels on the longest edge. Function Stage redraws its sampled curves each frame; these canvas-based scenes are exceptions to the shader scenes' allocation-free frame path. Curve sampling breaks at detected discontinuities, but extremely rapid oscillations may need a smaller horizontal range for accurate detail.
