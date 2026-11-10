@@ -75,6 +75,12 @@ test("psychedelic scenes render distinct audio-reactive images in landscape and 
           frame.beat =
             0.8;
         frame.kick = true;
+        // Isolate the detected onset: Hubble must visibly hit even without
+        // sustained bass, RMS or treble driving unrelated brightness changes.
+        if (scene instanceof HubbleAcidModule) {
+          frame.subBass = frame.bass = frame.mid = frame.treble = frame.rms = 0;
+          frame.beat = 1;
+        }
         scene.update(frame, 0, 0);
         scene.render(renderer, target, read);
         renderer.readRenderTargetPixels(target, 0, 0, w, h, active);
