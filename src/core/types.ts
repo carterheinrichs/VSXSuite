@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { BindingParams } from "tweakpane";
 export interface AudioFrameData {
   subBass: number;
   bass: number;
@@ -17,6 +18,8 @@ export interface AudioFrameData {
   /** Detected tempo and song-aligned cycle; absent when tempo is unavailable. */
   bpm?: number;
   beatPhase?: number;
+  /** Audible playback position for buffered audio; absent for live inputs. */
+  songTime?: number;
   uAudioTexture: THREE.DataTexture;
   uAudioHistoryTexture: THREE.DataTexture;
 }
@@ -24,6 +27,7 @@ export interface IVisualModule {
   readonly id: string;
   readonly name: string;
   params: Record<string, any>;
+  controls?: Record<string, BindingParams>;
   init(renderer: THREE.WebGLRenderer, width: number, height: number): void;
   update(audioData: AudioFrameData, time: number, deltaTime: number): void;
   render(

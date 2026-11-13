@@ -212,6 +212,7 @@ export class AudioEngine {
     f.lowAttack = f.midAttack = f.highAttack = 0;
     this.previousSpectrum.fill(0);
     f.bpm = f.beatPhase = undefined;
+    f.songTime = undefined;
     this.bytes.fill(0);
     this.waveform.fill(128);
     this.history.fill(0);
@@ -495,8 +496,12 @@ export class AudioEngine {
     const position = offline
       ? time
       : this.context && this.source && buffer
-        ? this.audiblePosition()
+        ? this.context.state === "suspended"
+          ? this.position
+          : this.audiblePosition()
         : null;
+    f.songTime =
+      buffer && (offline || this.source) ? (position ?? 0) : undefined;
     f.bpm = f.beatPhase = undefined;
     if (tempo && position !== null) {
       f.bpm = tempo.bpm;

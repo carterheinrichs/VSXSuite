@@ -65,6 +65,9 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Sine + cosine waves",
     "Classic radial spectrum",
     "Retro plasma",
+    "Fireplace",
+    "Text Stage",
+    "Function Stage",
   ]);
   for (const [label, file] of [
     ["Hubble Ring ON ACID", "hubble-acid"],

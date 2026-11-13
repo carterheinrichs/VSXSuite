@@ -30,6 +30,31 @@ function buffer() {
   };
 }
 
+test("song clock follows buffered playback, pause, seek and offline time", () => {
+  const engine = new AudioEngine();
+  engine.buffer = buffer();
+  engine.source = {};
+  engine.context = { currentTime: 10.5, state: "running", baseLatency: 0.1 };
+  engine.startedAt = 10;
+  engine.offset = 0.2;
+  assert.ok(Math.abs(engine.update(100, 1 / 60).songTime - 0.6) < 1e-6);
+  engine.context.state = "suspended";
+  assert.ok(Math.abs(engine.update(101, 1 / 60).songTime - 0.7) < 1e-6);
+  assert.ok(Math.abs(engine.update(102, 1 / 60).songTime - 0.7) < 1e-6);
+  engine.offset = 0.1;
+  engine.startedAt = engine.context.currentTime;
+  assert.ok(Math.abs(engine.update(103, 1 / 60).songTime - 0.1) < 1e-6);
+  const input = {
+    buffer: engine.buffer,
+    getByteFrequencyData: (a) => a.fill(0),
+    getByteTimeDomainData: (a) => a.fill(128),
+  };
+  assert.equal(engine.update(0.1, 1 / 60, input).songTime, 0.1);
+  engine.source = null;
+  engine.buffer = null;
+  assert.equal(engine.update(104, 1 / 60).songTime, undefined);
+});
+
 test("volume attacks promptly and retains a gradual decay at different frame rates", () => {
   for (const fps of [30, 60, 120]) {
     const engine = new AudioEngine();

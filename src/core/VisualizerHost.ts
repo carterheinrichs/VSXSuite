@@ -1,4 +1,8 @@
 import { HubbleAcidModule } from "../modules/HubbleAcidModule";
+import {
+  TextStageModule,
+  FunctionStageModule,
+} from "../modules/CreativeModules";
 import { HubbleNebulaModule } from "../modules/HubbleNebulaModule";
 import { HumanHeartModule } from "../modules/HumanHeartModule";
 import { FireplaceModule } from "../modules/FireplaceModule";
@@ -86,6 +90,8 @@ export class VisualizerHost {
     new RadialSpectrumModule(),
     new RetroPlasmaModule(),
     new FireplaceModule(),
+    new TextStageModule(),
+    new FunctionStageModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {

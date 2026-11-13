@@ -4,8 +4,8 @@ for (const revision of [1, 2]) {
     page,
   }) => {
     await page.goto(`/?ui=${revision}`);
-    await expect(page.locator("[data-scene]")).toHaveCount(31);
-    await expect(page.locator("#scene-count")).toHaveText("31");
+    await expect(page.locator("[data-scene]")).toHaveCount(33);
+    await expect(page.locator("#scene-count")).toHaveText("33");
     await expect(page.locator(".scene-caption")).toHaveCount(0);
     const rack = page.locator("#rack");
     const rackHeight = (await rack.boundingBox())!.height;
@@ -111,6 +111,8 @@ for (const revision of [1, 2]) {
       page.getByRole("heading", { name: "See what you hear." }),
     ).toBeVisible();
     await page.getByRole("link", { name: "Back to VSXSuite" }).click();
+    // Wait for the app to initialize before clicking static HTML controls.
+    await expect(page.locator("[data-scene]")).toHaveCount(33);
     await page.locator("#focus").click();
     await expect(page.locator("#catalog")).toBeHidden();
     await expect(page.locator("#library")).toBeHidden();
