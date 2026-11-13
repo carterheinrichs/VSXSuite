@@ -64,6 +64,44 @@ test("creative scenes render, customize, respond to music and recover from bad e
     const renderer = new T.WebGLRenderer();
     const audio = new AudioEngine();
     const results = [];
+    const clockScene = new M.FunctionStageModule();
+    clockScene.init(renderer, 256, 144);
+    Object.assign(clockScene.params, {
+      function1: "sin(x + t)",
+      secondFunction: false,
+      grid: false,
+      reactivity: 0,
+      glow: 0,
+    });
+    const clockTarget = new T.WebGLRenderTarget(256, 144);
+    const clockCapture = (elapsed: number, songTime?: number) => {
+      audio.frame.songTime = songTime;
+      clockScene.update(audio.frame, elapsed, 1 / 60);
+      clockScene.render(renderer, clockTarget, clockTarget);
+      const pixels = new Uint8Array(256 * 144 * 4);
+      renderer.readRenderTargetPixels(clockTarget, 0, 0, 256, 144, pixels);
+      return pixels;
+    };
+    const paused = clockCapture(100, 0.5);
+    const stillPaused = clockCapture(101, 0.5);
+    const seeked = clockCapture(102, 1.5);
+    const exported = clockCapture(1.5, 1.5);
+    const live = clockCapture(1.5);
+    results.push({
+      paused: paused.every((v: number, i: number) => v === stillPaused[i]),
+      seeked: seeked.some((v: number, i: number) => v !== paused[i]),
+      exportPhase: seeked.every((v: number, i: number) => v === exported[i]),
+      liveFallback: live.every((v: number, i: number) => v === exported[i]),
+    });
+    clockTarget.dispose();
+    clockScene.dispose();
+    const empty = new M.FunctionStageModule();
+    empty.params.function1 = "";
+    empty.init(renderer, 256, 144);
+    empty.update(audio.frame, 0, 1 / 60);
+    results.push({ emptyRejected: empty.params.status.includes("y1:") });
+    empty.dispose();
+    audio.frame.songTime = undefined;
     for (const Module of [M.TextStageModule, M.FunctionStageModule]) {
       const scene = new Module();
       scene.init(renderer, 256, 144);
@@ -90,7 +128,32 @@ test("creative scenes render, customize, respond to music and recover from bad e
         const custom = capture();
         // Repeated rendering at the same song time is deterministic for export.
         const repeated = capture();
+        const savedParams = { ...scene.params };
+        Object.assign(scene.params, {
+          background: "#808080",
+          backgroundEffect: 0,
+          glow: 0,
+          reactivity: 0,
+        });
+        if (scene.id === "text-stage")
+          Object.assign(scene.params, {
+            text: "TEST",
+            color: "#808080",
+            motion: 0,
+          });
+        else
+          Object.assign(scene.params, {
+            function1: "0",
+            secondFunction: false,
+            grid: false,
+            color1: "#808080",
+          });
+        const gray = capture();
+        const grayPixels = Array.from(gray).filter((_, i) => i % 4 !== 3);
+        Object.assign(scene.params, savedParams);
         results.push({
+          matchingColors:
+            Math.max(...grayPixels) - Math.min(...grayPixels) <= 2,
           lit: active.some((v: number, i: number) => i % 4 !== 3 && v > 25),
           reactive: active.some((v: number, i: number) => v !== silent[i]),
           custom: custom.some((v: number, i: number) => v !== active[i]),

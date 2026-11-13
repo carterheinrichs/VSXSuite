@@ -66,6 +66,7 @@ abstract class DrawingModule extends ShaderModule {
     // Canvas textures need fresh GPU storage when their dimensions change.
     this.texture.dispose();
     this.texture = new T.CanvasTexture(this.canvas);
+    this.texture.colorSpace = T.SRGBColorSpace;
     this.texture.generateMipmaps = false;
     this.texture.minFilter = T.LinearFilter;
     (this.uniforms as Record<string, T.IUniform>).uDrawing.value = this.texture;
@@ -208,7 +209,7 @@ export class FunctionStageModule extends DrawingModule {
       interval: 250,
     },
   };
-  private sources = ["", ""];
+  private sources: (string | undefined)[] = [undefined, undefined];
   private expressions: (Expression | undefined)[] = [];
   private errors = ["", ""];
   protected draw(audio: AudioFrameData, time: number) {
@@ -272,7 +273,7 @@ export class FunctionStageModule extends DrawingModule {
     }
     const v = {
       x: 0,
-      t: time * this.params.speed,
+      t: (audio.songTime ?? time) * this.params.speed,
       bass: audio.bass * this.params.reactivity,
       mid: audio.mid * this.params.reactivity,
       treble: audio.treble * this.params.reactivity,

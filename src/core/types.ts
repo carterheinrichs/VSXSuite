@@ -18,6 +18,8 @@ export interface AudioFrameData {
   /** Detected tempo and song-aligned cycle; absent when tempo is unavailable. */
   bpm?: number;
   beatPhase?: number;
+  /** Audible playback position for buffered audio; absent for live inputs. */
+  songTime?: number;
   uAudioTexture: THREE.DataTexture;
   uAudioHistoryTexture: THREE.DataTexture;
 }
