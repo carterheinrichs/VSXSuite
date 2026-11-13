@@ -78,6 +78,8 @@ Three more classics are available in the Classic library: **Sine + cosine waves*
 
 ## Text and function visualizers
 
+In **VISUAL ENGINE**, expand **Logo overlay** to upload an image (transparent PNG, WebP, and SVG logos are supported), or **Text overlay** to enter your own text (`|` starts a new line). Enable **Show overlay** for text; uploading a logo enables it automatically. Both overlays work with every scene and have independent scale, horizontal/vertical position, rotation, opacity, music response, float, and glow controls. Text also has font, weight, and color controls. Overlays pass through master FX and are included in video exports. Uploaded artwork stays in the current browser session; use **Remove logo** to clear it.
+
 Choose **Text Stage** in the library, then expand its control rack folder. Edit the text (`|` starts a new line), font, weight, letter spacing, size, and color. Solid, wave, and ring backgrounds have their own color; glow, float/pulse motion, and music response are adjustable. Text is limited to 1,000 characters and eight lines.
 
 **Function Stage** plots one or two equations as `y = f(x)`. Toggle the second curve, set independent colors, adjust the horizontal half-range and center coordinates, and show or hide the labeled grid. Both axes use the same unit scale. For example, use `sin(x + t) * (1 + bass)` and `cos(2x - t) * (1 + treble)` for moving, music-reactive curves.
