@@ -241,6 +241,103 @@ export class ViszSuiteUI {
     visual
       .addButton({ title: "Clear feedback" })
       .on("click", () => host.clear());
+    for (const layer of [host.logoOverlay, host.textOverlay]) {
+      const folder = visual.addFolder({
+        title: layer.kind === "logo" ? "Logo overlay" : "Text overlay",
+        expanded: false,
+      });
+      folder.addBinding(layer.params, "enabled", { label: "Show overlay" });
+      if (layer.kind === "logo") {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.hidden = true;
+        input.setAttribute("aria-label", "Upload logo image");
+        folder.element.append(input);
+        const upload = folder.addButton({ title: "Upload logo image" });
+        upload.on("click", () => input.click());
+        let uploadVersion = 0;
+        input.addEventListener(
+          "change",
+          async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            const version = ++uploadVersion;
+            try {
+              await layer.loadLogo(file);
+              if (version !== uploadVersion || this.abort.signal.aborted)
+                return;
+              upload.title = file.name;
+              folder.refresh();
+            } catch (error) {
+              this.error((error as Error).message);
+            } finally {
+              input.value = "";
+            }
+          },
+          { signal: this.abort.signal },
+        );
+        folder.addButton({ title: "Remove logo" }).on("click", () => {
+          uploadVersion++;
+          layer.clearLogo();
+          upload.title = "Upload logo image";
+          folder.refresh();
+        });
+      } else {
+        folder.addBinding(layer.text, "text", {
+          label: "Text (| for new line)",
+        });
+        folder.addBinding(layer.text, "color", { label: "Text color" });
+        folder.addBinding(layer.text, "font", {
+          options: {
+            Modern: "sans-serif",
+            Editorial: "serif",
+            Terminal: "monospace",
+          },
+        });
+        folder.addBinding(layer.text, "bold");
+      }
+      folder.addBinding(layer.params, "scale", {
+        min: 0.05,
+        max: 2,
+        step: 0.01,
+      });
+      folder.addBinding(layer.params, "x", {
+        label: "Horizontal position",
+        min: 0,
+        max: 1,
+        step: 0.01,
+      });
+      folder.addBinding(layer.params, "y", {
+        label: "Vertical position",
+        min: 0,
+        max: 1,
+        step: 0.01,
+      });
+      folder.addBinding(layer.params, "rotation", {
+        min: -180,
+        max: 180,
+        step: 1,
+      });
+      folder.addBinding(layer.params, "opacity", {
+        min: 0,
+        max: 1,
+        step: 0.01,
+      });
+      folder.addBinding(layer.params, "reactivity", {
+        label: "Music response",
+        min: 0,
+        max: 3,
+        step: 0.01,
+      });
+      folder.addBinding(layer.params, "motion", {
+        label: "Float",
+        min: 0,
+        max: 3,
+        step: 0.01,
+      });
+      folder.addBinding(layer.params, "glow", { min: 0, max: 3, step: 0.01 });
+    }
     for (const module of [...host.modules, host.post] as IVisualModule[]) {
       const folder = this.pane.addFolder({
         title: module.name.toUpperCase(),
@@ -710,7 +807,8 @@ export class ViszSuiteUI {
     const quality =
       document.querySelector<HTMLSelectElement>("#export-quality")!;
     const fps = document.querySelector<HTMLSelectElement>("#export-fps")!;
-    const portrait = document.querySelector<HTMLInputElement>("#export-portrait")!;
+    const portrait =
+      document.querySelector<HTMLInputElement>("#export-portrait")!;
     this.dragDepth = 0;
     document.body.classList.remove("dragging");
     rack.inert = true;
