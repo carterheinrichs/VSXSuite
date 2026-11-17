@@ -29,13 +29,17 @@ const display =
   `
 uniform sampler2D state;
 uniform vec2 grid;
-uniform float states,uHue,uIntensity,uReactivity;
+uniform float states,uHue,uIntensity,uReactivity,uPulse;
 void main(){
  // Square cells, with a centered crop of a fixed simulation domain.
  vec2 uv=(vUv-.5)*uResolution/(min(uResolution.x,uResolution.y)*grid.x/grid.y)+.5;
+ // A restrained bass push makes hits physical without hiding the cell structure.
+ uv=(uv-.5)/(1.+uReactivity*(uBass*.035+uPulse*.025))+.5;
  float phase=floor(texture2D(state,fract(uv)).r*255.+.5)/states;
- vec3 color=palette(phase+uHue);
- float light=.8+uReactivity*(uBass*.35+uBeat*.2);
+ vec3 color=palette(phase+uHue+uReactivity*(uMid*.045+uPulse*.025));
+ float neighbor=floor(texture2D(state,fract(uv+vec2(1./grid.x,0.))).r*255.+.5)/states;
+ float edge=step(.5/states,abs(phase-neighbor));
+ float light=.8+uReactivity*(uBass*.65+uPulse*.55+edge*uTreble*.45);
  gl_FragColor=vec4(pow(color,vec3(1.4))*uIntensity*light,1.);
 }`;
 
@@ -66,6 +70,7 @@ export class CyclicAutomatonModule extends ShaderModule {
   private stepPass!: FullscreenPass;
   private pendingReset = true;
   private accumulator = 0;
+  private pulse = 0;
   private cells = -1;
   private states = -1;
   private threshold = -1;
@@ -85,6 +90,7 @@ export class CyclicAutomatonModule extends ShaderModule {
     uHue: { value: 0 },
     uIntensity: { value: 1.3 },
     uReactivity: { value: 1 },
+    uPulse: { value: 0 },
   };
   init(_renderer: T.WebGLRenderer, w: number, h: number) {
     const options = {
@@ -108,6 +114,7 @@ export class CyclicAutomatonModule extends ShaderModule {
   protected override onReset() {
     this.pendingReset = true;
     this.accumulator = 0;
+    this.pulse = 0;
   }
   override update(audio: AudioFrameData, time: number, dt: number) {
     super.update(audio, time, dt);
@@ -133,12 +140,22 @@ export class CyclicAutomatonModule extends ShaderModule {
     this.look.uHue.value = p.hue;
     this.look.uIntensity.value = p.intensity;
     this.look.uReactivity.value = p.reactivity;
-    // Fixed generation rate; bounded catch-up avoids stalls after tab suspension.
-    this.accumulator +=
-      Math.max(0, Math.min(dt, 0.25)) *
-      30 *
-      p.speed *
-      (1 + audio.bass * p.reactivity);
+    const delta = Math.max(0, Math.min(dt, 0.25));
+    // Percussive attacks respond immediately, with a short time-based release.
+    this.pulse = Math.max(
+      this.pulse * Math.exp(-delta * 10),
+      audio.beat,
+      audio.lowAttack ?? 0,
+      audio.midAttack ?? 0,
+      audio.highAttack ?? 0,
+    );
+    this.look.uPulse.value = this.pulse;
+    // Keep the cellular rules intact; music drives generation rate and shading.
+    const drive = audio.bass * 1.8 + audio.mid * 0.6 + this.pulse * 2.4;
+    this.accumulator = Math.min(
+      24,
+      this.accumulator + delta * 30 * p.speed * (1 + drive * p.reactivity),
+    );
   }
   override render(renderer: T.WebGLRenderer, output: T.WebGLRenderTarget) {
     if (this.pendingReset) {

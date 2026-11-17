@@ -49,12 +49,30 @@ test("cyclic automaton evolves, repeats after reset and preserves state on resiz
     const reactive = capture();
     const equal = (x: Uint8Array, y: Uint8Array) =>
       x.every((v, i) => v === y[i]);
+    scene.params.speed = 0;
+    scene.params.reactivity = 0;
+    scene.update(audio.frame, 4, 0);
+    const disabled = capture();
+    Object.assign(audio.frame, {
+      bass: 0,
+      beat: 0,
+      mid: 1,
+      treble: 1,
+      highAttack: 1,
+    });
+    scene.update(audio.frame, 5, 0);
+    const disabledWithAttack = capture();
+    scene.params.reactivity = 1;
+    scene.update(audio.frame, 6, 0);
+    const attack = capture();
     const result = {
       lit: a.first.some((v, i) => i % 4 !== 3 && v > 30),
       evolves: !equal(a.first, a.last),
       repeats: equal(a.last, b.last),
       resize: equal(b.last, resized),
       reactive: !equal(resized, reactive),
+      disabled: equal(disabled, disabledWithAttack),
+      attack: !equal(disabledWithAttack, attack),
     };
     scene.dispose();
     output.dispose();
@@ -68,6 +86,8 @@ test("cyclic automaton evolves, repeats after reset and preserves state on resiz
     repeats: true,
     resize: true,
     reactive: true,
+    disabled: true,
+    attack: true,
   });
   expect(errors).toEqual([]);
 });
