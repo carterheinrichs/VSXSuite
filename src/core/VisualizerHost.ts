@@ -1,3 +1,4 @@
+import { CyclicAutomatonModule } from "../modules/CyclicAutomatonModule";
 import { BrandOverlay } from "../modules/BrandOverlay";
 import { HubbleAcidModule } from "../modules/HubbleAcidModule";
 import {
@@ -93,6 +94,7 @@ export class VisualizerHost {
     new FireplaceModule(),
     new TextStageModule(),
     new FunctionStageModule(),
+    new CyclicAutomatonModule(),
   ];
   readonly logoOverlay = new BrandOverlay("logo");
   readonly textOverlay = new BrandOverlay("text");
