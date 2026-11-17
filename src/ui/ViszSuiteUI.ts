@@ -120,7 +120,9 @@ export class ViszSuiteUI {
               "retro-plasma",
             ].includes(id)
           ? "Classic"
-          : id === "function-stage" || [3, 4, 5, 9, 10, 13, 14].includes(index)
+          : id === "cyclic-automaton" ||
+              id === "function-stage" ||
+              [3, 4, 5, 9, 10, 13, 14].includes(index)
             ? "Geometric"
             : "Atmospheric";
     const renderLibrary = () => {
@@ -710,7 +712,8 @@ export class ViszSuiteUI {
     const quality =
       document.querySelector<HTMLSelectElement>("#export-quality")!;
     const fps = document.querySelector<HTMLSelectElement>("#export-fps")!;
-    const portrait = document.querySelector<HTMLInputElement>("#export-portrait")!;
+    const portrait =
+      document.querySelector<HTMLInputElement>("#export-portrait")!;
     this.dragDepth = 0;
     document.body.classList.remove("dragging");
     rack.inert = true;

@@ -1,3 +1,4 @@
+import { CyclicAutomatonModule } from "../modules/CyclicAutomatonModule";
 import { HubbleAcidModule } from "../modules/HubbleAcidModule";
 import {
   TextStageModule,
@@ -92,6 +93,7 @@ export class VisualizerHost {
     new FireplaceModule(),
     new TextStageModule(),
     new FunctionStageModule(),
+    new CyclicAutomatonModule(),
   ];
   readonly post = new MasterPostFXModule();
   readonly settings = {
