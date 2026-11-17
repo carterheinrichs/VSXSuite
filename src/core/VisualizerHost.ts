@@ -1,4 +1,5 @@
 import { CyclicAutomatonModule } from "../modules/CyclicAutomatonModule";
+import { BrandOverlay } from "../modules/BrandOverlay";
 import { HubbleAcidModule } from "../modules/HubbleAcidModule";
 import {
   TextStageModule,
@@ -95,6 +96,8 @@ export class VisualizerHost {
     new FunctionStageModule(),
     new CyclicAutomatonModule(),
   ];
+  readonly logoOverlay = new BrandOverlay("logo");
+  readonly textOverlay = new BrandOverlay("text");
   readonly post = new MasterPostFXModule();
   readonly settings = {
     scene: "neon",
@@ -376,6 +379,12 @@ export class VisualizerHost {
       } else active.render(this.renderer, this.a, this.b);
       read = this.a;
     }
+    for (const layer of [this.logoOverlay, this.textOverlay]) {
+      if (!layer.active) continue;
+      const output = read === this.a ? this.b : this.a;
+      layer.render(this.renderer, output, read, audio, time);
+      read = output;
+    }
     let overlay: T.WebGLRenderTarget | null = null;
     if (overlayActive) {
       this.neon.layered = true;
@@ -383,8 +392,9 @@ export class VisualizerHost {
       if (this.settings.postFX) {
         overlay = this.neon.renderFeedback(this.renderer);
       } else {
-        this.neon.render(this.renderer, this.b, read);
-        read = this.b;
+        const output = read === this.a ? this.b : this.a;
+        this.neon.render(this.renderer, output, read);
+        read = output;
       }
     }
     if (this.settings.postFX) {
@@ -420,6 +430,8 @@ export class VisualizerHost {
       this.contextRestored,
     );
     for (let i = 0; i < this.modules.length; i++) this.modules[i].dispose();
+    this.logoOverlay.dispose();
+    this.textOverlay.dispose();
     this.post.dispose();
     this.a.dispose();
     this.b.dispose();
