@@ -1,6 +1,6 @@
 import {
   AudioBufferSource,
-  BufferTarget,
+  StreamTarget,
   CanvasSource,
   Output,
   Quality,
@@ -8,6 +8,7 @@ import {
   canEncodeVideo,
   canEncodeAudio,
 } from "mediabunny";
+import { VideoBlobTarget } from "./VideoBlobTarget";
 import { AudioEngine } from "../audio/AudioEngine";
 import { FileAudioAnalysis } from "../audio/FileAudioAnalysis";
 import type { VisualizerHost } from "./VisualizerHost";
@@ -107,7 +108,7 @@ export class VideoExporter {
       bitrate: bitrate * (fps / 30),
       bitrateMode: "variable",
     });
-    let output: Output<WebMOutputFormat, BufferTarget> | undefined;
+    let output: Output<WebMOutputFormat, StreamTarget> | undefined;
     let capture: ReturnType<AudioEngine["beginExport"]> | undefined;
     const analysisAudio = new AudioEngine();
     let renderStarted = false;
@@ -149,8 +150,11 @@ export class VideoExporter {
       renderStarted = true;
       host.beginOfflineExport(width, height);
       const analysis = new FileAudioAnalysis(capture.buffer);
-      const target = new BufferTarget();
-      output = new Output({ format: new WebMOutputFormat(), target });
+      const storage = new VideoBlobTarget();
+      output = new Output({
+        format: new WebMOutputFormat(),
+        target: storage.target,
+      });
       const video = new CanvasSource(host.canvas, {
         codec,
         quality,
@@ -224,7 +228,7 @@ export class VideoExporter {
       });
       await output.finalize();
       check();
-      const blob = new Blob([target.buffer!], { type: "video/webm" });
+      const blob = storage.finish();
       this.controller = null;
       this.setState({ status: "completed", blob });
       return blob;

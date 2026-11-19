@@ -234,3 +234,33 @@ test("offline audio analysis responds to the song rather than the playback clock
   expect(result.rms).toBeGreaterThan(0.4);
   expect(result.silentRms).toBeLessThan(0.03);
 });
+
+test("chunked video storage preserves bytes across boundaries and header rewrites", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    // @ts-expect-error Vite serves source modules to the integration browser.
+    const { VideoBlobTarget } = await import("/src/core/VideoBlobTarget.ts");
+    const storage = new VideoBlobTarget();
+    const size = 16 * 1024 * 1024;
+    const bytes = new Uint8Array(size + 8).fill(7);
+    storage.write(bytes, 0);
+    storage.write(new Uint8Array([1, 2, 3, 4]), size - 2);
+    storage.write(new Uint8Array([9, 8]), 0);
+    bytes.fill(0); // Stored chunks must own their bytes.
+    const blob = storage.finish();
+    return {
+      size: blob.size,
+      type: blob.type,
+      header: Array.from(new Uint8Array(await blob.slice(0, 4).arrayBuffer())),
+      boundary: Array.from(
+        new Uint8Array(await blob.slice(size - 3, size + 4).arrayBuffer()),
+      ),
+    };
+  });
+  expect(result.size).toBe(16 * 1024 * 1024 + 8);
+  expect(result.type).toBe("video/webm");
+  expect(result.header).toEqual([9, 8, 7, 7]);
+  expect(result.boundary).toEqual([7, 1, 2, 3, 4, 7, 7]);
+});
