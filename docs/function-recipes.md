@@ -1,5 +1,7 @@
 # Function Stage recipe book
 
+[Documentation home](README.md) · [Function Stage guide](visualizers/function-stage.md)
+
 Ten starting points for music-reactive curves. **Start with Twin tides, Liquid modulation, or Traveling wave packets.** These are visual adaptations of mathematical waveforms, not simulations of the song's actual waveform or audio synthesizers.
 
 ## Set up
