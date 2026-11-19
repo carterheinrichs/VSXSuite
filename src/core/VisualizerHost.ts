@@ -1,4 +1,5 @@
 import { CyclicAutomatonModule } from "../modules/CyclicAutomatonModule";
+import { GameOfLifeModule } from "../modules/GameOfLifeModule";
 import { BrandOverlay } from "../modules/BrandOverlay";
 import { HubbleAcidModule } from "../modules/HubbleAcidModule";
 import {
@@ -95,6 +96,7 @@ export class VisualizerHost {
     new TextStageModule(),
     new FunctionStageModule(),
     new CyclicAutomatonModule(),
+    new GameOfLifeModule(),
   ];
   readonly logoOverlay = new BrandOverlay("logo");
   readonly textOverlay = new BrandOverlay("text");

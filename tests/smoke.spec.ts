@@ -68,6 +68,8 @@ test("HDR scenes, audio transport, scene selection and resizing work without sha
     "Fireplace",
     "Text Stage",
     "Function Stage",
+    "Cyclic Cellular Automaton",
+    "Conway's Game of Life",
   ]);
   for (const [label, file] of [
     ["Hubble Ring ON ACID", "hubble-acid"],

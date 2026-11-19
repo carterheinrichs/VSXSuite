@@ -121,6 +121,7 @@ export class ViszSuiteUI {
             ].includes(id)
           ? "Classic"
           : id === "cyclic-automaton" ||
+              id === "game-of-life" ||
               id === "function-stage" ||
               [3, 4, 5, 9, 10, 13, 14].includes(index)
             ? "Geometric"
