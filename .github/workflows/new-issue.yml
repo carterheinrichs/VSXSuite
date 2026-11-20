@@ -1,0 +1,25 @@
+name: Trigger T3 Code Thread
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  dispatch-to-t3:
+    if: github.event.issue.user.login == 'carterheinrichs'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Issue Payload to T3 Code Webhook
+        env:
+          T3_WEBHOOK_URL: ${{ secrets.T3_WEBHOOK_URL }}
+        run: |
+          curl -sS -X POST "$T3_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @- << 'EOF'
+          {
+            "number": ${{ github.event.issue.number }},
+            "title": ${{ toJSON(github.event.issue.title) }},
+            "body": ${{ toJSON(github.event.issue.body) }},
+            "url": ${{ toJSON(github.event.issue.html_url) }}
+          }
+          EOF
