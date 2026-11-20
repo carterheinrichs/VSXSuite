@@ -72,6 +72,11 @@ export class AudioEngine {
   private hasEverLoaded = false;
   sourceKind: AudioSourceKind = "none";
   sourceName = "No audio";
+  get nowPlayingText() {
+    return this.transportState === "idle"
+      ? "DEMO BEAT \u00b7 PRESS PLAY"
+      : this.sourceName.toUpperCase();
+  }
   fileLoaded = false;
   onStateChange: (() => void) | null = null;
   get transportState(): AudioTransportState {

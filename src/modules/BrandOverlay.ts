@@ -17,6 +17,7 @@ export class BrandOverlay {
   };
   readonly text = {
     text: "FEEL THE MUSIC",
+    nowPlaying: false,
     color: "#63f5ff",
     font: "sans-serif",
     bold: true,
@@ -28,7 +29,10 @@ export class BrandOverlay {
   private version = 0;
   private disposed = false;
   private pass: FullscreenPass;
-  constructor(readonly kind: "logo" | "text") {
+  constructor(
+    readonly kind: "logo" | "text",
+    private readonly getNowPlayingText: () => string = () => "",
+  ) {
     this.canvas.width = 1536;
     this.canvas.height = 768;
     this.texture = new T.CanvasTexture(this.canvas);
@@ -102,16 +106,19 @@ export class BrandOverlay {
     this.params.enabled = false;
     this.signature = "";
   }
+  get displayText() {
+    return this.text.nowPlaying ? this.getNowPlayingText() : this.text.text;
+  }
   get active() {
     return (
       this.params.enabled &&
-      (this.kind === "text" ? !!this.text.text.trim() : !!this.image)
+      (this.kind === "text" ? !!this.displayText.trim() : !!this.image)
     );
   }
   private draw() {
     const signature =
       this.kind === "text"
-        ? JSON.stringify(this.text)
+        ? JSON.stringify([this.text, this.displayText])
         : (this.image?.src ?? "");
     if (signature === this.signature) return;
     this.signature = signature;
@@ -128,7 +135,7 @@ export class BrandOverlay {
         ih = this.image.naturalHeight * ratio;
       c.drawImage(this.image, (w - iw) / 2, (h - ih) / 2, iw, ih);
     } else if (this.kind === "text") {
-      const lines = this.text.text.slice(0, 1000).split(/[|\n]/).slice(0, 8);
+      const lines = this.displayText.slice(0, 1000).split(/[|\n]/).slice(0, 8);
       const size = Math.min(220, (h * 0.8) / (lines.length * 1.3));
       c.font = `${this.text.bold ? 800 : 400} ${size}px ${this.text.font}`;
       c.fillStyle = this.text.color;
