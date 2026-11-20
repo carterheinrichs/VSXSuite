@@ -13,3 +13,5 @@ Video bitrate targets at 30 FPS are 20 Mbps for 1080p, 32 Mbps for 1440p and 60 
 
 Enable **Portrait** to swap output width and height. Select **Download video** when rendering finishes. Export requires an opened audio file; live inputs and the procedural beat cannot be exported.
 
+
+In browsers that support direct file saving, **Download video** opens a Save As dialog and streams the completed video to the selected file. Otherwise it uses the browser download manager. The video remains available for retry after canceling or a save error. If the download manager reports a failure, try a regular browser window or a lower resolution; large exports can exceed private-session storage limits.
