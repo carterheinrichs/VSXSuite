@@ -9,6 +9,7 @@ import {
 } from "../audio/MusicCatalog";
 import type { IVisualModule } from "../core/types";
 import { VideoExporter, type EXPORT_PRESETS } from "../core/VideoExporter";
+import { saveVideo } from "../core/saveVideo";
 
 export type TrackProbeState =
   | { status: "pending" }
@@ -451,8 +452,9 @@ export class ViszSuiteUI {
     );
     document.querySelector("#download-video")!.addEventListener(
       "click",
-      () => {
-        document.querySelector<HTMLElement>("#export-status")!.hidden = true;
+      (event) => {
+        event.preventDefault();
+        void this.downloadVideo();
       },
       { signal },
     );
@@ -798,6 +800,34 @@ export class ViszSuiteUI {
     const element = document.querySelector<HTMLElement>("#error")!;
     element.textContent = message;
     element.hidden = false;
+  }
+  private async downloadVideo() {
+    const state = this.exporter.state;
+    if (state.status !== "completed") return;
+    const download =
+      document.querySelector<HTMLAnchorElement>("#download-video")!;
+    const status = document.querySelector<HTMLElement>("#export-status")!;
+    status.hidden = false;
+    status.textContent = "Saving video…";
+    try {
+      if (await saveVideo(state.blob, download.download)) {
+        status.textContent = "Video saved.";
+      } else {
+        const link = document.createElement("a");
+        link.href = download.href;
+        link.download = download.download;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        status.textContent =
+          "Download started. Check your browser’s downloads for completion. If it fails, try a regular browser window or a lower export resolution.";
+      }
+    } catch (error) {
+      status.textContent =
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Save canceled. Select Download video to try again."
+          : `Unable to save video: ${error instanceof Error ? error.message : "Unknown error"}. Select Download video to retry.`;
+    }
   }
   private async exportVideo() {
     const status = document.querySelector<HTMLElement>("#export-status")!;

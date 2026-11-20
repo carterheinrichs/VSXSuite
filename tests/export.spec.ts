@@ -129,6 +129,72 @@ for (const portrait of [false, true]) {
     expect(timing.brightest).toBeGreaterThan(20);
     timing.timestamps.forEach((time, i) => expect(time).toBeCloseTo(i / 30, 3));
     expect(timing.duration).toBeCloseTo(0.3, 1);
+    await page.evaluate(() => {
+      Object.defineProperty(window, "showSaveFilePicker", {
+        configurable: true,
+        value: async () => {
+          throw new DOMException("Canceled", "AbortError");
+        },
+      });
+    });
+    await page.locator("#download-video").click();
+    await expect(page.locator("#export-status")).toContainText("Save canceled");
+    await page.evaluate(() => {
+      Object.defineProperty(window, "showSaveFilePicker", {
+        configurable: true,
+        value: async () => ({
+          createWritable: async () =>
+            new WritableStream({
+              write(bytes) {
+                document.body.dataset.savedBytes = String(
+                  Number(document.body.dataset.savedBytes || 0) + bytes.length,
+                );
+              },
+            }),
+        }),
+      });
+    });
+    await page.locator("#download-video").click();
+    await expect(page.locator("#export-status")).toHaveText("Video saved.");
+    const blobSize = await page
+      .locator("#download-video")
+      .evaluate(
+        async (element) =>
+          (await (await fetch((element as HTMLAnchorElement).href)).blob())
+            .size,
+      );
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-saved-bytes",
+      String(blobSize),
+    );
+    // Playwright contexts are private sessions. Exercise the download manager,
+    // not just media decoding from the in-page Blob URL.
+    await page.evaluate(() => {
+      Object.defineProperty(window, "showSaveFilePicker", {
+        value: undefined,
+        configurable: true,
+      });
+    });
+    const downloadEvent = page.waitForEvent("download");
+    await page.locator("#download-video").click();
+    const downloaded = await downloadEvent;
+    expect(await downloaded.failure()).toBeNull();
+    expect(downloaded.suggestedFilename()).toBe("song-visualization.webm");
+    const stream = await downloaded.createReadStream();
+    const parts: Buffer[] = [];
+    for await (const part of stream!) parts.push(Buffer.from(part));
+    const expectedBytes = await page
+      .locator("#download-video")
+      .evaluate(async (element) =>
+        Array.from(
+          new Uint8Array(
+            await (
+              await fetch((element as HTMLAnchorElement).href)
+            ).arrayBuffer(),
+          ),
+        ),
+      );
+    expect(Buffer.concat(parts)).toEqual(Buffer.from(expectedBytes));
     await expect(page.locator("#export-dialog #export-status")).toBeVisible();
     const exportBox = await page.locator("#export").boundingBox();
     const downloadBox = await page.locator("#download-video").boundingBox();
