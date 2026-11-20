@@ -437,3 +437,20 @@ test("song phase is deterministic across frame rates and rewind", () => {
   assert.equal(engine.update(2.325, 1 / 120, input).beatPhase, first);
   engine.dispose();
 });
+
+test("now playing text matches idle, loaded, paused and stopped source labels", () => {
+  const engine = new AudioEngine();
+  assert.equal(engine.nowPlayingText, "DEMO BEAT · PRESS PLAY");
+  engine.buffer = buffer();
+  engine.sourceKind = "file";
+  engine.sourceName = "Song - Artist.wav";
+  engine.hasEverLoaded = true;
+  assert.equal(engine.nowPlayingText, "SONG - ARTIST.WAV");
+  engine.context = { state: "running", close: async () => {} };
+  assert.equal(engine.nowPlayingText, "SONG - ARTIST.WAV");
+  engine.sourceName = "Next song";
+  assert.equal(engine.nowPlayingText, "NEXT SONG");
+  engine.stop();
+  assert.equal(engine.nowPlayingText, "NO AUDIO");
+  engine.dispose();
+});
