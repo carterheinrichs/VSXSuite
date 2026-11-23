@@ -1446,3 +1446,82 @@ body.focus-mode #catalog {
     transition: none;
   }
 }
+
+/* Stack the queue below the visualizer controls, with shared scrolling. */
+#right-panels {
+  position: fixed;
+  top: calc(96px + env(safe-area-inset-top, 0px));
+  right: 24px;
+  width: 280px;
+  max-height: calc(
+    100dvh - 201px - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px)
+  );
+  overflow: auto;
+  scrollbar-width: thin;
+  z-index: 3;
+}
+#right-panels #rack {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-height: none;
+}
+#queue {
+  margin-top: 12px;
+  padding: 19px;
+  border: 1px solid #ffffff20;
+  border-radius: 14px;
+  background: #10131eeb;
+  backdrop-filter: blur(20px);
+}
+#queue-content {
+  margin-top: 16px;
+}
+#queue.is-collapsed #queue-content {
+  display: none;
+}
+#queue-list {
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
+  max-height: 200px;
+  overflow: auto;
+}
+#queue-list li,
+.queue-actions,
+.catalog-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#queue-list li {
+  padding: 5px 0;
+}
+#queue-list li span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.catalog-row .catalog-track {
+  flex: 1;
+  min-width: 0;
+}
+body.focus-mode #right-panels {
+  display: none;
+}
+@media (max-width: 700px) {
+  #right-panels {
+    right: 8px;
+    top: calc(76px + env(safe-area-inset-top, 0px));
+    width: 195px;
+    max-height: calc(
+      100dvh - 170px - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+  }
+  #queue {
+    padding: 12px;
+  }
+}

@@ -263,3 +263,101 @@ test("failed audio load preserves existing playback and active catalog selection
   await expect(page.locator("#status")).toHaveText("AUDIO CONNECTED");
   await expect(page.locator("#source-label")).toHaveText("GOOD TRACK - ARTIST");
 });
+
+for (const revision of [1, 2]) {
+  test(`revision ${revision}: queue removal, skipping and automatic advancement`, async ({
+    page,
+  }) => {
+    await page.goto(`/?ui=${revision}`);
+    await page.evaluate(async () => {
+      function makeWavUrl(seconds: number) {
+        const rate = 8000;
+        const samples = Math.floor(rate * seconds);
+        const buffer = new ArrayBuffer(44 + samples * 2);
+        const view = new DataView(buffer);
+        const writeStr = (offset: number, str: string) => {
+          for (let i = 0; i < str.length; i++)
+            view.setUint8(offset + i, str.charCodeAt(i));
+        };
+        writeStr(0, "RIFF");
+        view.setUint32(4, 36 + samples * 2, true);
+        writeStr(8, "WAVEfmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, rate, true);
+        view.setUint32(28, rate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, "data");
+        view.setUint32(40, samples * 2, true);
+        for (let i = 0; i < samples; i++) {
+          view.setInt16(
+            44 + i * 2,
+            Math.round(Math.sin((i / rate) * Math.PI * 440) * 14000),
+            true,
+          );
+        }
+        return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+      }
+      // @ts-expect-error Vite serves source modules to the integration browser.
+      const { updateCatalogFiles } = await import("/src/audio/MusicCatalog.ts");
+      updateCatalogFiles({
+        "/music/Solar Echoes - Astral Projection.wav": makeWavUrl(30),
+        "/music/Midnight Drift - Nova Pulse.mp3": makeWavUrl(30),
+      });
+    });
+
+    const addFirst = page.getByRole("button", {
+      name: "Add Midnight Drift - Nova Pulse to queue",
+    });
+    await addFirst.click();
+    await addFirst.click();
+    await page
+      .getByRole("button", {
+        name: "Add Solar Echoes - Astral Projection to queue",
+      })
+      .click();
+    await expect(page.locator("#queue-count")).toHaveText("3");
+    await page
+      .getByRole("button", {
+        name: "Remove Midnight Drift - Nova Pulse from queue",
+      })
+      .first()
+      .click();
+    await expect(page.locator("#queue-count")).toHaveText("2");
+    await page.getByRole("button", { name: "Play next", exact: true }).click();
+    await expect(page.locator("#source-label")).toHaveText(
+      "MIDNIGHT DRIFT - NOVA PULSE",
+    );
+    await expect(page.locator("#queue-count")).toHaveText("1");
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
+    await page.locator("#seek").evaluate((input: HTMLInputElement) => {
+      input.value = "29.5";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect(page.locator("#queue-count")).toHaveText("1");
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await expect(page.locator("#source-label")).toHaveText(
+      "SOLAR ECHOES - ASTRAL PROJECTION",
+    );
+    await expect(page.locator("#queue-count")).toHaveText("0");
+    await page.locator("#seek").evaluate((input: HTMLInputElement) => {
+      input.value = "29.5";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect(page.locator("footer")).toHaveAttribute(
+      "data-audio-state",
+      "stopped",
+    );
+    await addFirst.click();
+    await page
+      .getByRole("button", { name: "Clear queue", exact: true })
+      .click();
+    await expect(page.locator("#queue-next")).toBeDisabled();
+    await page
+      .getByRole("button", { name: "Minimize queue", exact: true })
+      .click();
+    await expect(page.locator("#queue-content")).toBeHidden();
+  });
+}

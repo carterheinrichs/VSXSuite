@@ -79,6 +79,7 @@ export class AudioEngine {
   }
   fileLoaded = false;
   onStateChange: (() => void) | null = null;
+  onEnded: (() => void) | null = null;
   get transportState(): AudioTransportState {
     if (!this.hasSource) return this.hasEverLoaded ? "stopped" : "idle";
     if (this.sourceKind === "mic" || this.sourceKind === "system") {
@@ -115,7 +116,11 @@ export class AudioEngine {
   get position() {
     if (!this.source || !this.context) return 0;
     const elapsed = this.offset + this.context.currentTime - this.startedAt;
-    return this.duration ? elapsed % this.duration : elapsed;
+    return this.duration
+      ? this.sourceKind === "synth"
+        ? elapsed % this.duration
+        : Math.min(elapsed, this.duration)
+      : elapsed;
   }
   // Suspending the audio clock preserves sample-accurate playback position.
   async togglePlayback() {
@@ -133,14 +138,30 @@ export class AudioEngine {
       0,
       Math.min(seconds, this.buffer.duration - 0.001),
     );
-    if (this.source instanceof AudioBufferSourceNode) this.source.stop();
+    if (this.source instanceof AudioBufferSourceNode) {
+      this.source.onended = null;
+      this.source.stop();
+    }
     this.source?.disconnect();
     this.startBuffer(this.buffer, position);
   }
-  private startBuffer(buffer: AudioBuffer, offset = 0) {
+  private startBuffer(
+    buffer: AudioBuffer,
+    offset = 0,
+    loop = this.sourceKind === "synth",
+  ) {
     const source = this.context!.createBufferSource();
     source.buffer = buffer;
-    source.loop = true;
+    source.loop = loop;
+    source.onended = () => {
+      if (this.source !== source) return;
+      this.releaseActiveSource();
+      this.fileLoaded = false;
+      this.sourceKind = "none";
+      this.sourceName = "No audio";
+      this.onStateChange?.();
+      this.onEnded?.();
+    };
     source.connect(this.analyser!);
     this.resetAnalysis();
     this.fileAnalysis = new FileAudioAnalysis(buffer);
@@ -176,6 +197,7 @@ export class AudioEngine {
     this.resetAnalysis();
     if (this.source) {
       if (this.source instanceof AudioBufferSourceNode) {
+        this.source.onended = null;
         try {
           this.source.stop();
         } catch {
@@ -240,7 +262,10 @@ export class AudioEngine {
     }
     clock = Math.min(c.currentTime, clock);
     if (clock < this.startedAt) return null;
-    return (this.offset + clock - this.startedAt) % this.duration;
+    const position = this.offset + clock - this.startedAt;
+    return this.sourceKind === "synth"
+      ? position % this.duration
+      : Math.min(position, this.duration);
   }
   async file(file: File) {
     const token = ++this.generation;
@@ -252,7 +277,7 @@ export class AudioEngine {
     await this.context!.resume();
     this.releaseActiveSource();
     this.output!.gain.value = 0.65;
-    this.startBuffer(buffer);
+    this.startBuffer(buffer, 0, false);
     this.hasEverLoaded = true;
     this.sourceKind = "file";
     this.sourceName = file.name;
@@ -271,7 +296,7 @@ export class AudioEngine {
     await this.context!.resume();
     this.releaseActiveSource();
     this.output!.gain.value = 0.65;
-    this.startBuffer(buffer);
+    this.startBuffer(buffer, 0, false);
     this.hasEverLoaded = true;
     this.sourceKind = "catalog";
     this.sourceName = name;
@@ -365,7 +390,7 @@ export class AudioEngine {
       );
     }
     this.output!.gain.value = 0.65;
-    this.startBuffer(buffer);
+    this.startBuffer(buffer, 0, true);
     this.sourceName = "Procedural / 120 BPM";
     this.onStateChange?.();
   }
@@ -403,7 +428,7 @@ export class AudioEngine {
         this.fileAnalysis.at(
           position + 512 / this.context.sampleRate,
           dt,
-          true,
+          this.sourceKind === "synth",
         );
         this.fileAnalysis.getByteFrequencyData(this.spectrum);
         this.fileAnalysis.getByteTimeDomainData(this.waveform);

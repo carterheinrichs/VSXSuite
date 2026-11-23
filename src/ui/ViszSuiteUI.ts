@@ -27,6 +27,7 @@ export class ViszSuiteUI {
   private catalogTracks: CatalogTrack[] = getCatalogTracks();
   private readonly catalogProbes = new Map<string, TrackProbeState>();
   private activeTrackId = "";
+  private queue: CatalogTrack[] = [];
   private readonly unsubscribeCatalog: () => void;
   private readonly play = document.querySelector<HTMLButtonElement>("#play")!;
   private readonly seek = document.querySelector<HTMLInputElement>("#seek")!;
@@ -75,6 +76,28 @@ export class ViszSuiteUI {
       "Expand music catalog",
       "Minimize music catalog",
     );
+    bindCollapsiblePanel(
+      "#queue",
+      "#queue-content",
+      "#queue-toggle",
+      "Expand queue",
+      "Minimize queue",
+    );
+    document
+      .querySelector("#queue-next")!
+      .addEventListener("click", () => void this.playNext(), {
+        signal: this.abort.signal,
+      });
+    document.querySelector("#queue-clear")!.addEventListener(
+      "click",
+      () => {
+        this.queue = [];
+        this.renderQueue();
+      },
+      { signal: this.abort.signal },
+    );
+    audio.onEnded = () => void this.playNext();
+    this.renderQueue();
     this.renderCatalog();
     this.unsubscribeCatalog = subscribeCatalog((tracks) => {
       this.setCatalogTracks(tracks);
@@ -657,7 +680,18 @@ export class ViszSuiteUI {
         () => void this.loadCatalogTrack(track),
         { signal: this.abort.signal },
       );
-      list.append(button);
+      const row = document.createElement("div");
+      row.className = "catalog-row";
+      const enqueue = document.createElement("button");
+      enqueue.type = "button";
+      enqueue.textContent = "+";
+      enqueue.setAttribute("aria-label", `Add ${track.displayName} to queue`);
+      enqueue.addEventListener("click", () => {
+        this.queue.push(track);
+        this.renderQueue();
+      });
+      row.append(button, enqueue);
+      list.append(row);
       if (!probe) {
         this.catalogProbes.set(track.id, { status: "pending" });
         void probeTrackDuration(track.url, this.abort.signal)
@@ -669,6 +703,51 @@ export class ViszSuiteUI {
             this.catalogProbes.set(track.id, { status: "failed" });
           });
       }
+    }
+  }
+  private renderQueue() {
+    const list = document.querySelector("#queue-list")!;
+    list.replaceChildren();
+    document.querySelector("#queue-count")!.textContent = String(
+      this.queue.length,
+    );
+    for (const [index, track] of this.queue.entries()) {
+      const row = document.createElement("li");
+      const title = document.createElement("span");
+      title.textContent = track.displayName;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "×";
+      remove.setAttribute(
+        "aria-label",
+        `Remove ${track.displayName} from queue`,
+      );
+      remove.addEventListener("click", () => {
+        this.queue.splice(index, 1);
+        this.renderQueue();
+      });
+      row.append(title, remove);
+      list.append(row);
+    }
+    if (!this.queue.length) {
+      const empty = document.createElement("li");
+      empty.className = "catalog-empty";
+      empty.textContent = "Queue is empty. Add songs with + in the catalog.";
+      list.append(empty);
+    }
+    for (const id of ["queue-next", "queue-clear"]) {
+      document.querySelector<HTMLButtonElement>(`#${id}`)!.disabled =
+        !this.queue.length;
+    }
+  }
+  private async playNext() {
+    if (this.exporter.active || this.connectingAudio) return;
+    const track = this.queue.shift();
+    if (!track) return;
+    this.renderQueue();
+    if (!(await this.loadCatalogTrack(track))) {
+      this.queue.unshift(track);
+      this.renderQueue();
     }
   }
   private updateTrackRuntime(trackId: string, duration: number) {
@@ -685,7 +764,7 @@ export class ViszSuiteUI {
   }
   private async loadCatalogTrack(track: CatalogTrack) {
     if (this.exporter.active) return;
-    await this.run(async () => {
+    return this.run(async () => {
       await this.audio.track(track.url, track.displayName);
       this.activeTrackId = track.id;
       this.renderCatalog();
@@ -782,10 +861,12 @@ export class ViszSuiteUI {
       await action();
       this.connectingAudio = false;
       this.source();
+      return true;
     } catch (e) {
       this.connectingAudio = false;
       this.error(e instanceof Error ? e.message : "Unable to open audio.");
       this.source();
+      return false;
     }
   }
   private async runView(action: () => Promise<void>) {
@@ -846,6 +927,7 @@ export class ViszSuiteUI {
     rack.inert = true;
     catalog.inert = true;
     library.inert = true;
+    document.querySelector<HTMLElement>("#queue")!.inert = true;
     file.disabled = true;
     quality.disabled = true;
     fps.disabled = true;
@@ -885,6 +967,7 @@ export class ViszSuiteUI {
       rack.inert = false;
       catalog.inert = false;
       library.inert = false;
+      document.querySelector<HTMLElement>("#queue")!.inert = false;
       file.disabled = false;
       quality.disabled = false;
       fps.disabled = false;
@@ -900,6 +983,7 @@ export class ViszSuiteUI {
     this.abort.abort();
     this.pane.dispose();
     this.audio.onStateChange = null;
+    this.audio.onEnded = null;
     this.exporter.onStateChange = null;
     this.host.onStats = null;
     this.host.onError = null;
