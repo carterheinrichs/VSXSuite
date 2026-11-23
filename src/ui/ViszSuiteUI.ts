@@ -1,6 +1,6 @@
 import { Pane } from "tweakpane";
 import type { VisualizerHost } from "../core/VisualizerHost";
-import type { AudioEngine } from "../audio/AudioEngine";
+import type { AudioEngine, PlaybackMode } from "../audio/AudioEngine";
 import {
   getCatalogTracks,
   probeTrackDuration,
@@ -96,7 +96,24 @@ export class ViszSuiteUI {
       },
       { signal: this.abort.signal },
     );
-    audio.onEnded = () => void this.playNext();
+    document
+      .querySelector("#playback-next")!
+      .addEventListener("click", () => void this.playNext(), {
+        signal: this.abort.signal,
+      });
+    const playbackMode =
+      document.querySelector<HTMLSelectElement>("#playback-mode")!;
+    playbackMode.value = audio.playbackMode;
+    playbackMode.addEventListener(
+      "change",
+      () => {
+        audio.playbackMode = playbackMode.value as PlaybackMode;
+      },
+      { signal: this.abort.signal },
+    );
+    audio.onEnded = () => {
+      if (audio.playbackMode === "queue") void this.playNext();
+    };
     this.renderQueue();
     this.renderCatalog();
     this.unsubscribeCatalog = subscribeCatalog((tracks) => {
@@ -738,7 +755,7 @@ export class ViszSuiteUI {
       empty.textContent = "Queue is empty. Add songs with + in the catalog.";
       list.append(empty);
     }
-    for (const id of ["queue-next", "queue-clear"]) {
+    for (const id of ["queue-next", "queue-clear", "playback-next"]) {
       document.querySelector<HTMLButtonElement>(`#${id}`)!.disabled =
         !this.queue.length;
     }
@@ -792,6 +809,12 @@ export class ViszSuiteUI {
     exportButton.disabled = !audio.fileLoaded && !exporting;
     exportButton.textContent = exporting ? "Cancel export" : "Export video";
     this.play.disabled = exporting;
+    document.querySelector<HTMLSelectElement>("#playback-mode")!.disabled =
+      exporting;
+    for (const id of ["playback-next", "queue-next"]) {
+      document.querySelector<HTMLButtonElement>(`#${id}`)!.disabled =
+        !this.queue.length || exporting || this.connectingAudio;
+    }
     this.play.textContent = audio.playing ? "\u2161  PAUSE" : "\u25b6  PLAY";
     this.play.setAttribute("aria-label", audio.playing ? "Pause" : "Play");
     this.seek.disabled = audio.duration === 0 || exporting;
