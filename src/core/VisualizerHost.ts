@@ -99,7 +99,10 @@ export class VisualizerHost {
     new GameOfLifeModule(),
   ];
   readonly logoOverlay = new BrandOverlay("logo");
-  readonly textOverlay = new BrandOverlay("text");
+  readonly textOverlay = new BrandOverlay(
+    "text",
+    () => this.audio.nowPlayingText,
+  );
   readonly post = new MasterPostFXModule();
   readonly settings = {
     scene: "neon",

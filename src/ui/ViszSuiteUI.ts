@@ -288,6 +288,7 @@ export class ViszSuiteUI {
           folder.refresh();
         });
       } else {
+        folder.addBinding(layer.text, "nowPlaying", { label: "Now playing" });
         folder.addBinding(layer.text, "text", {
           label: "Text (| for new line)",
         });
@@ -734,9 +735,7 @@ export class ViszSuiteUI {
   private source() {
     const state = this.audio.transportState;
     document.querySelector("#source-label")!.textContent =
-      state === "idle"
-        ? "DEMO BEAT \u00b7 PRESS PLAY"
-        : this.audio.sourceName.toUpperCase();
+      this.audio.nowPlayingText;
     document.querySelector("#status")!.textContent =
       state === "idle"
         ? "READY TO EXPLORE"

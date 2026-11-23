@@ -89,3 +89,51 @@ test("logo and text overlays composite transparently and react deterministically
   });
   expect(result.every(Boolean), JSON.stringify(result)).toBe(true);
 });
+
+test("now playing checkbox uses the footer text and preserves custom text", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Text overlay", exact: true }).click();
+  const checkbox = page
+    .locator(".tp-lblv")
+    .filter({ hasText: "Now playing" })
+    .locator('input[type="checkbox"]');
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.check();
+  await expect(checkbox).toBeChecked();
+  await checkbox.uncheck();
+
+  const result = await page.evaluate(async () => {
+    // @ts-expect-error Vite module
+    const { BrandOverlay } = await import("/src/modules/BrandOverlay.ts");
+    // @ts-expect-error Vite module
+    const { AudioEngine } = await import("/src/audio/AudioEngine.ts");
+    const audio = new AudioEngine();
+    const layer = new BrandOverlay("text", () => audio.nowPlayingText);
+    layer.params.enabled = true;
+    layer.text.text = "Custom title";
+    layer.text.nowPlaying = true;
+    const idle = layer.displayText;
+    const footer = document.querySelector("#source-label")!.textContent;
+    await audio.synth();
+    const demo = layer.displayText;
+    audio.sourceName = "Song - Artist.wav";
+    const track = layer.displayText;
+    layer.text.nowPlaying = false;
+    const custom = layer.displayText;
+    layer.text.text = "";
+    const emptyCustom = layer.active;
+    layer.text.nowPlaying = true;
+    const activeNowPlaying = layer.active;
+    layer.dispose();
+    audio.dispose();
+    return { idle, footer, demo, track, custom, emptyCustom, activeNowPlaying };
+  });
+  expect(result.idle).toBe(result.footer);
+  expect(result.demo).toBe("PROCEDURAL / 120 BPM");
+  expect(result.track).toBe("SONG - ARTIST.WAV");
+  expect(result.custom).toBe("Custom title");
+  expect(result.emptyCustom).toBe(false);
+  expect(result.activeNowPlaying).toBe(true);
+});
