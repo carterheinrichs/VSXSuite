@@ -326,11 +326,37 @@ for (const revision of [1, 2]) {
       .first()
       .click();
     await expect(page.locator("#queue-count")).toHaveText("2");
-    await page.getByRole("button", { name: "Play next", exact: true }).click();
+    await expect(page.locator("#playback-next")).toBeEnabled();
+    await page.locator("#playback-next").click();
     await expect(page.locator("#source-label")).toHaveText(
       "MIDNIGHT DRIFT - NOVA PULSE",
     );
     await expect(page.locator("#queue-count")).toHaveText("1");
+    await page.locator("#playback-mode").selectOption("loop");
+    await page.locator("#seek").evaluate((input: HTMLInputElement) => {
+      input.value = "29.5";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect
+      .poll(async () => Number(await page.locator("#seek").inputValue()))
+      .toBeLessThan(5);
+    await expect(page.locator("#queue-count")).toHaveText("1");
+    await page.locator("#playback-mode").selectOption("single");
+    await page.locator("#seek").evaluate((input: HTMLInputElement) => {
+      input.value = "29.5";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect(page.locator("footer")).toHaveAttribute(
+      "data-audio-state",
+      "stopped",
+    );
+    await expect(page.locator("#queue-count")).toHaveText("1");
+    // Reload the first track to verify the default queue mode still advances.
+    await page
+      .locator(".catalog-track")
+      .filter({ hasText: "Midnight Drift" })
+      .click();
+    await page.locator("#playback-mode").selectOption("queue");
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await page.locator("#seek").evaluate((input: HTMLInputElement) => {
       input.value = "29.5";

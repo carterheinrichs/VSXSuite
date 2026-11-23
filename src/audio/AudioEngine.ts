@@ -16,6 +16,8 @@ export type AudioSourceKind =
 export type AudioTransportState =
   "idle" | "connecting" | "playing" | "paused" | "live" | "stopped";
 
+export type PlaybackMode = "queue" | "single" | "loop";
+
 export class AudioEngine {
   readonly bytes = new Uint8Array(WIDTH * 2);
   readonly history = new Uint8Array(WIDTH * HISTORY);
@@ -80,6 +82,23 @@ export class AudioEngine {
   fileLoaded = false;
   onStateChange: (() => void) | null = null;
   onEnded: (() => void) | null = null;
+  private mode: PlaybackMode = "queue";
+  get playbackMode() {
+    return this.mode;
+  }
+  set playbackMode(mode: PlaybackMode) {
+    const position = this.position;
+    this.mode = mode;
+    if (this.source instanceof AudioBufferSourceNode) {
+      this.offset = position;
+      this.startedAt = this.context!.currentTime;
+      this.source.loop = this.looping;
+    }
+    this.onStateChange?.();
+  }
+  private get looping() {
+    return this.sourceKind === "synth" || this.mode === "loop";
+  }
   get transportState(): AudioTransportState {
     if (!this.hasSource) return this.hasEverLoaded ? "stopped" : "idle";
     if (this.sourceKind === "mic" || this.sourceKind === "system") {
@@ -117,7 +136,7 @@ export class AudioEngine {
     if (!this.source || !this.context) return 0;
     const elapsed = this.offset + this.context.currentTime - this.startedAt;
     return this.duration
-      ? this.sourceKind === "synth"
+      ? this.looping
         ? elapsed % this.duration
         : Math.min(elapsed, this.duration)
       : elapsed;
@@ -145,11 +164,7 @@ export class AudioEngine {
     this.source?.disconnect();
     this.startBuffer(this.buffer, position);
   }
-  private startBuffer(
-    buffer: AudioBuffer,
-    offset = 0,
-    loop = this.sourceKind === "synth",
-  ) {
+  private startBuffer(buffer: AudioBuffer, offset = 0, loop = this.looping) {
     const source = this.context!.createBufferSource();
     source.buffer = buffer;
     source.loop = loop;
@@ -263,7 +278,7 @@ export class AudioEngine {
     clock = Math.min(c.currentTime, clock);
     if (clock < this.startedAt) return null;
     const position = this.offset + clock - this.startedAt;
-    return this.sourceKind === "synth"
+    return this.looping
       ? position % this.duration
       : Math.min(position, this.duration);
   }
@@ -277,7 +292,7 @@ export class AudioEngine {
     await this.context!.resume();
     this.releaseActiveSource();
     this.output!.gain.value = 0.65;
-    this.startBuffer(buffer, 0, false);
+    this.startBuffer(buffer, 0, this.mode === "loop");
     this.hasEverLoaded = true;
     this.sourceKind = "file";
     this.sourceName = file.name;
@@ -296,7 +311,7 @@ export class AudioEngine {
     await this.context!.resume();
     this.releaseActiveSource();
     this.output!.gain.value = 0.65;
-    this.startBuffer(buffer, 0, false);
+    this.startBuffer(buffer, 0, this.mode === "loop");
     this.hasEverLoaded = true;
     this.sourceKind = "catalog";
     this.sourceName = name;
@@ -428,7 +443,7 @@ export class AudioEngine {
         this.fileAnalysis.at(
           position + 512 / this.context.sampleRate,
           dt,
-          this.sourceKind === "synth",
+          this.looping,
         );
         this.fileAnalysis.getByteFrequencyData(this.spectrum);
         this.fileAnalysis.getByteTimeDomainData(this.waveform);

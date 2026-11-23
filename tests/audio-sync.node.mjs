@@ -497,3 +497,43 @@ test("natural song endings notify once; seeking and stopping do not advance the 
     globalThis.AudioBufferSourceNode = previousSourceClass;
   }
 });
+
+test("playback mode updates native looping and preserves the wrapped song clock", () => {
+  const previousSourceClass = globalThis.AudioBufferSourceNode;
+  class Source {
+    connect() {}
+    disconnect() {}
+    start() {}
+    stop() {}
+  }
+  globalThis.AudioBufferSourceNode = Source;
+  try {
+    const engine = new AudioEngine();
+    engine.context = {
+      currentTime: 0,
+      state: "running",
+      createBufferSource: () => new Source(),
+    };
+    engine.sourceKind = "file";
+    assert.equal(engine.playbackMode, "queue");
+    engine.startBuffer(buffer());
+    engine.playbackMode = "loop";
+    assert.equal(engine.source.loop, true);
+    engine.context.currentTime = 2.25;
+    assert.equal(engine.position, 0.25);
+    assert.equal(engine.audiblePosition(), 0.25);
+    engine.seek(0.5);
+    assert.equal(engine.source.loop, true);
+    engine.context.currentTime = 4;
+    engine.playbackMode = "single";
+    assert.equal(engine.source.loop, false);
+    assert.equal(engine.position, 0.25);
+    engine.context.currentTime = 4.25;
+    assert.equal(engine.position, 0.5);
+    engine.playbackMode = "queue";
+    assert.equal(engine.source.loop, false);
+    engine.stop();
+  } finally {
+    globalThis.AudioBufferSourceNode = previousSourceClass;
+  }
+});

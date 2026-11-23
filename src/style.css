@@ -1594,3 +1594,18 @@ body.focus-mode #right-panels {
     font-size: 10px;
   }
 }
+
+#playback-mode {
+  min-width: 0;
+  max-width: 130px;
+  padding: 6px;
+  border: 1px solid #ffffff20;
+  border-radius: 6px;
+  background: #141823;
+  color: #e7e9f2;
+  font: inherit;
+  font-size: 10px;
+}
+.transport {
+  flex-wrap: wrap;
+}

@@ -140,6 +140,17 @@
     <footer>
       <div class="transport">
         <button id="play" aria-label="Play">▶ &nbsp; PLAY</button
+        ><button
+          id="playback-next"
+          aria-label="Next in queue"
+          title="Next in queue"
+          disabled
+        >
+          ⏭</button
+        ><select id="playback-mode" aria-label="Playback mode">
+          <option value="queue">Next in queue</option>
+          <option value="single">Single play</option>
+          <option value="loop">Loop track</option></select
         ><button id="file">↗ &nbsp; OPEN AUDIO</button
         ><input
           id="file-input"
