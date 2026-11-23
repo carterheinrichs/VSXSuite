@@ -95,23 +95,48 @@
         <div id="scene-grid"></div>
       </div>
     </section>
-    <aside id="rack" aria-label="Visual settings">
-      <div class="panel-heading">
-        <h2>Control rack</h2>
-        <button
-          id="rack-toggle"
-          class="panel-toggle"
-          aria-expanded="true"
-          aria-controls="rack-controls"
-          aria-label="Minimize control rack"
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="m4 10 4-4 4 4" />
-          </svg>
-        </button>
-      </div>
-      <div id="rack-motion"><div id="rack-controls"></div></div>
-    </aside>
+    <div id="right-panels">
+      <aside id="rack" aria-label="Visual settings">
+        <div class="panel-heading">
+          <h2>Control rack</h2>
+          <button
+            id="rack-toggle"
+            class="panel-toggle"
+            aria-expanded="true"
+            aria-controls="rack-controls"
+            aria-label="Minimize control rack"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="m4 10 4-4 4 4" />
+            </svg>
+          </button>
+        </div>
+        <div id="rack-motion"><div id="rack-controls"></div></div>
+      </aside>
+      <section id="queue" aria-label="Song queue">
+        <div class="panel-heading">
+          <h2>Queue <small id="queue-count" aria-live="polite">0</small></h2>
+          <button
+            id="queue-toggle"
+            class="panel-toggle"
+            aria-expanded="true"
+            aria-controls="queue-content"
+            aria-label="Minimize queue"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="m4 10 4-4 4 4" />
+            </svg>
+          </button>
+        </div>
+        <div id="queue-content">
+          <div class="queue-actions">
+            <button id="queue-next">Play next</button
+            ><button id="queue-clear">Clear queue</button>
+          </div>
+          <ol id="queue-list"></ol>
+        </div>
+      </section>
+    </div>
     <footer>
       <div class="transport">
         <button id="play" aria-label="Play">▶ &nbsp; PLAY</button

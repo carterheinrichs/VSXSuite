@@ -454,3 +454,46 @@ test("now playing text matches idle, loaded, paused and stopped source labels", 
   assert.equal(engine.nowPlayingText, "NO AUDIO");
   engine.dispose();
 });
+
+test("natural song endings notify once; seeking and stopping do not advance the queue", () => {
+  const previousSourceClass = globalThis.AudioBufferSourceNode;
+  class Source {
+    connect() {}
+    disconnect() {}
+    start() {}
+    stop() {
+      this.onended?.();
+    }
+  }
+  globalThis.AudioBufferSourceNode = Source;
+  try {
+    const engine = new AudioEngine();
+    engine.context = {
+      currentTime: 0,
+      state: "running",
+      createBufferSource: () => new Source(),
+    };
+    engine.sourceKind = "catalog";
+    engine.hasEverLoaded = true;
+    let ended = 0;
+    engine.onEnded = () => ended++;
+    engine.startBuffer(buffer());
+    const original = engine.source;
+    assert.equal(original.loop, false);
+    engine.seek(0.5);
+    assert.equal(ended, 0);
+    assert.equal(original.onended, null);
+    const naturalEnd = engine.source.onended;
+    naturalEnd();
+    naturalEnd();
+    assert.equal(ended, 1);
+    assert.equal(engine.transportState, "stopped");
+    engine.sourceKind = "synth";
+    engine.startBuffer(buffer());
+    assert.equal(engine.source.loop, true);
+    engine.stop();
+    assert.equal(ended, 1);
+  } finally {
+    globalThis.AudioBufferSourceNode = previousSourceClass;
+  }
+});
