@@ -34,12 +34,32 @@
     <header>
       <a class="brand" href="#">VSX<span>SUITE</span></a>
       <div class="view-actions">
+        <a id="music-open" href="#music">Music library</a>
         <button id="focus" aria-pressed="false">Hide controls</button>
         <button id="fullscreen">Fullscreen</button>
         <button id="export-open" class="primary">Export ↗</button
         ><a id="about-open" href="/about.html">About</a>
       </div>
     </header>
+    <main id="music-page" hidden>
+      <span class="eyebrow">YOUR SOUND</span>
+      <h1>Local music library</h1>
+      <p>
+        Choose a folder to browse its audio tracks, including subfolders. Your
+        music stays on this device. Keep this tab open to keep your library and
+        queue.
+      </p>
+      <div class="music-actions">
+        <button id="choose-folder" class="primary">Choose folder</button>
+        <a href="#">Back to visualizer</a>
+      </div>
+      <input id="folder-input" type="file" webkitdirectory multiple hidden />
+      <p id="folder-status" role="status">
+        No folder selected. Supported: MP3, WAV, OGG, FLAC, M4A, AAC, OPUS.
+      </p>
+      <div id="music-catalog-slot"></div>
+      <div id="music-queue-slot"></div>
+    </main>
     <section id="catalog" aria-label="Music catalog">
       <div class="panel-heading">
         <h2>

@@ -5,6 +5,7 @@ export interface CatalogTrack {
   name: string;
   author: string;
   url: string;
+  details?: string;
 }
 
 const AUDIO_FILE_RE = /\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i;

@@ -1609,3 +1609,67 @@ body.focus-mode #right-panels {
 .transport {
   flex-wrap: wrap;
 }
+
+/* In-app navigation keeps the audio engine and queue alive between views. */
+#music-page[hidden] {
+  display: none;
+}
+#music-page {
+  pointer-events: auto;
+  text-shadow: none;
+  position: fixed;
+  inset: 100px 24px 150px;
+  overflow: auto;
+  padding: 28px;
+  max-width: 1000px;
+  margin: 0 auto;
+  background: #10131ef5;
+  border: 1px solid #ffffff20;
+  border-radius: 18px;
+}
+#music-page h1 {
+  font-size: clamp(26px, 4vw, 42px);
+  margin: 12px 0;
+}
+#music-page p {
+  display: block;
+  color: #a5aec4;
+  line-height: 1.6;
+}
+.music-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.music-actions a {
+  color: #bda8ff;
+}
+#music-page #catalog {
+  position: static;
+  width: 100%;
+  max-height: none;
+  margin: 20px 0;
+  display: block;
+  transform: none;
+}
+#music-page #catalog-motion,
+#music-page #catalog-content,
+#music-page #catalog-list {
+  max-height: none;
+}
+#music-page #queue {
+  max-height: 300px;
+}
+body.music-page #library,
+body.music-page #right-panels,
+body.music-page #stage,
+body.music-page #focus,
+body.music-page #export-open {
+  display: none;
+}
+@media (max-width: 700px) {
+  #music-page {
+    inset: 120px 12px 200px;
+    padding: 18px;
+  }
+}

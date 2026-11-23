@@ -3,6 +3,7 @@ import type { VisualizerHost } from "../core/VisualizerHost";
 import type { AudioEngine, PlaybackMode } from "../audio/AudioEngine";
 import {
   getCatalogTracks,
+  parseCatalogTrack,
   probeTrackDuration,
   subscribeCatalog,
   type CatalogTrack,
@@ -24,6 +25,8 @@ export class ViszSuiteUI {
   private connectingAudio = false;
   private readonly exporter = new VideoExporter();
   private downloadURL = "";
+  private localTracks: CatalogTrack[] = [];
+  private localURLs: string[] = [];
   private catalogTracks: CatalogTrack[] = getCatalogTracks();
   private readonly catalogProbes = new Map<string, TrackProbeState>();
   private activeTrackId = "";
@@ -114,6 +117,7 @@ export class ViszSuiteUI {
     audio.onEnded = () => {
       if (audio.playbackMode === "queue") void this.playNext();
     };
+    this.bindMusicPage();
     this.renderQueue();
     this.renderCatalog();
     this.unsubscribeCatalog = subscribeCatalog((tracks) => {
@@ -652,7 +656,83 @@ export class ViszSuiteUI {
     this.footer.dataset.audioState = this.audio.transportState;
     this.transport();
   }
+  private bindMusicPage() {
+    const signal = this.abort.signal;
+    const page = document.querySelector<HTMLElement>("#music-page")!;
+    const catalog = document.querySelector<HTMLElement>("#catalog")!;
+    const queue = document.querySelector<HTMLElement>("#queue")!;
+    const catalogHome = document.createComment("catalog home");
+    const queueHome = document.createComment("queue home");
+    catalog.before(catalogHome);
+    queue.before(queueHome);
+    const navigate = () => {
+      const music = location.hash === "#music";
+      document.body.classList.toggle("music-page", music);
+      page.hidden = !music;
+      if (music) {
+        document.body.classList.remove("focus-mode");
+        const focus = document.querySelector<HTMLButtonElement>("#focus")!;
+        focus.textContent = "Hide controls";
+        focus.setAttribute("aria-pressed", "false");
+        document.querySelector("#music-catalog-slot")!.append(catalog);
+        document.querySelector("#music-queue-slot")!.append(queue);
+      } else {
+        catalogHome.after(catalog);
+        queueHome.after(queue);
+      }
+      document
+        .querySelector("#music-open")!
+        .setAttribute("aria-current", music ? "page" : "false");
+    };
+    window.addEventListener("hashchange", navigate, { signal });
+    navigate();
+    const input = document.querySelector<HTMLInputElement>("#folder-input")!;
+    document
+      .querySelector("#choose-folder")!
+      .addEventListener("click", () => input.click(), { signal });
+    input.addEventListener(
+      "change",
+      () => {
+        const files = Array.from(input.files ?? []);
+        if (!files.length) return;
+        const audioFiles = files.filter(
+          (file) =>
+            /\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i.test(file.name) ||
+            file.type.startsWith("audio/"),
+        );
+        // Retain earlier object URLs: queued and currently playing tracks may still use them.
+        this.localTracks = audioFiles
+          .map((file) => {
+            const url = URL.createObjectURL(file);
+            this.localURLs.push(url);
+            const track = parseCatalogTrack(
+              file.webkitRelativePath || file.name,
+              url,
+            );
+            return {
+              ...track,
+              id: url,
+              details: `${file.name.split(".").pop()!.toUpperCase()} · ${(file.size / 1048576).toFixed(1)} MB`,
+            };
+          })
+          .sort((a, b) =>
+            a.displayName.localeCompare(b.displayName, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            }),
+          );
+        this.setCatalogTracks(getCatalogTracks());
+        const folder =
+          files[0].webkitRelativePath.split("/")[0] || "Selected folder";
+        document.querySelector("#folder-status")!.textContent =
+          `${folder}: ${audioFiles.length} audio tracks. Choose another folder to replace the library; queued songs remain available.`;
+        input.value = "";
+      },
+      { signal },
+    );
+  }
   setCatalogTracks(tracks: CatalogTrack[]) {
+    tracks = [...tracks, ...this.localTracks];
     this.catalogTracks = tracks;
     if (
       this.activeTrackId &&
@@ -679,6 +759,7 @@ export class ViszSuiteUI {
       button.type = "button";
       button.className = "catalog-track";
       button.dataset.track = track.id;
+      if (track.details) button.title = track.details;
       button.setAttribute(
         "aria-pressed",
         String(this.activeTrackId === track.id),
@@ -1008,6 +1089,7 @@ export class ViszSuiteUI {
     this.unsubscribeCatalog();
     this.abort.abort();
     this.pane.dispose();
+    for (const url of this.localURLs) URL.revokeObjectURL(url);
     this.audio.onStateChange = null;
     this.audio.onEnded = null;
     this.exporter.onStateChange = null;
