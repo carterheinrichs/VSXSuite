@@ -685,6 +685,7 @@ export class ViszSuiteUI {
       const enqueue = document.createElement("button");
       enqueue.type = "button";
       enqueue.textContent = "+";
+      enqueue.className = "queue-icon-button";
       enqueue.setAttribute("aria-label", `Add ${track.displayName} to queue`);
       enqueue.addEventListener("click", () => {
         this.queue.push(track);
@@ -715,9 +716,11 @@ export class ViszSuiteUI {
       const row = document.createElement("li");
       const title = document.createElement("span");
       title.textContent = track.displayName;
+      title.title = track.displayName;
       const remove = document.createElement("button");
       remove.type = "button";
       remove.textContent = "×";
+      remove.className = "queue-icon-button";
       remove.setAttribute(
         "aria-label",
         `Remove ${track.displayName} from queue`,

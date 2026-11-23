@@ -1447,7 +1447,7 @@ body.focus-mode #catalog {
   }
 }
 
-/* Stack the queue below the visualizer controls, with shared scrolling. */
+/* Keep the settings and queue within the same compact panel column. */
 #right-panels {
   position: fixed;
   top: calc(96px + env(safe-area-inset-top, 0px));
@@ -1457,18 +1457,27 @@ body.focus-mode #catalog {
     100dvh - 201px - env(safe-area-inset-top, 0px) -
       env(safe-area-inset-bottom, 0px)
   );
-  overflow: auto;
-  scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   z-index: 3;
 }
 #right-panels #rack {
   position: relative;
   inset: auto;
   width: 100%;
+  min-height: 68px;
+  flex: 0 1 auto;
   max-height: none;
+  overflow: auto;
 }
 #queue {
-  margin-top: 12px;
+  width: 100%;
+  min-height: 0;
+  max-height: min(230px, 40dvh);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
   padding: 19px;
   border: 1px solid #ffffff20;
   border-radius: 14px;
@@ -1476,33 +1485,79 @@ body.focus-mode #catalog {
   backdrop-filter: blur(20px);
 }
 #queue-content {
-  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 10px;
 }
 #queue.is-collapsed #queue-content {
   display: none;
 }
 #queue-list {
   padding: 0;
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   list-style: none;
-  max-height: 200px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #373143 transparent;
 }
 #queue-list li,
 .queue-actions,
 .catalog-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 #queue-list li {
-  padding: 5px 0;
+  padding: 3px 0;
+}
+#queue-list li.catalog-empty {
+  padding: 8px 10px;
 }
 #queue-list li span {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #c9cddd;
+}
+.queue-actions button,
+.queue-icon-button {
+  border: 1px solid #ffffff0b;
+  border-radius: 6px;
+  background: #191c28;
+  color: #c9cddd;
+  padding: 5px 9px;
+  font-size: 11px;
+  line-height: 16px;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+.queue-actions button:hover:not(:disabled),
+.queue-icon-button:hover {
+  background: #292b3b;
+  color: #ede6ff;
+}
+.queue-actions button:focus-visible,
+.queue-icon-button:focus-visible {
+  outline: 2px solid #c4a6ff;
+  outline-offset: 2px;
+}
+.queue-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.queue-icon-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 16px;
 }
 .catalog-row .catalog-track {
   flex: 1;
@@ -1511,17 +1566,31 @@ body.focus-mode #catalog {
 body.focus-mode #right-panels {
   display: none;
 }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
+  #right-panels {
+    width: 220px;
+  }
+}
+@media (max-width: 600px) {
   #right-panels {
     right: 8px;
     top: calc(76px + env(safe-area-inset-top, 0px));
-    width: 195px;
+    width: 175px;
     max-height: calc(
       100dvh - 170px - env(safe-area-inset-top, 0px) -
         env(safe-area-inset-bottom, 0px)
     );
+    gap: 8px;
   }
   #queue {
     padding: 12px;
+    border-radius: 10px;
+  }
+  .queue-actions {
+    gap: 4px;
+  }
+  .queue-actions button {
+    padding: 4px 6px;
+    font-size: 10px;
   }
 }
