@@ -1673,3 +1673,75 @@ body.music-page #export-open {
     padding: 18px;
   }
 }
+
+/* Keep library navigation and transport usable on touch screens. */
+@media (max-width: 900px) {
+  .view-actions #music-open {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .music-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  #music-page button,
+  #music-page .music-actions a {
+    min-height: 44px;
+  }
+  #music-page .queue-icon-button {
+    min-width: 44px;
+  }
+  #music-page .catalog-track {
+    min-width: 0;
+  }
+  #music-page .catalog-track-title {
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 600px), (max-height: 500px) {
+  body.music-page header {
+    top: env(safe-area-inset-top, 0px);
+    left: 8px;
+    right: 8px;
+    padding: 8px;
+  }
+  body.music-page #fullscreen {
+    display: none;
+  }
+  #music-page {
+    inset: calc(76px + env(safe-area-inset-top, 0px)) 8px
+      calc(160px + env(safe-area-inset-bottom, 0px));
+    padding: 16px;
+    max-width: none;
+  }
+  body.music-page footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  body.music-page .transport {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 6px;
+  }
+  body.music-page .transport button,
+  body.music-page .transport select {
+    min-height: 44px;
+  }
+  body.music-page #file,
+  body.music-page .stats {
+    display: none;
+  }
+  body.music-page .timeline {
+    width: 100%;
+  }
+  body.music-page #source-label {
+    display: none;
+  }
+}

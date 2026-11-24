@@ -686,50 +686,55 @@ export class ViszSuiteUI {
     };
     window.addEventListener("hashchange", navigate, { signal });
     navigate();
-    const input = document.querySelector<HTMLInputElement>("#folder-input")!;
-    document
-      .querySelector("#choose-folder")!
-      .addEventListener("click", () => input.click(), { signal });
-    input.addEventListener(
-      "change",
-      () => {
-        const files = Array.from(input.files ?? []);
-        if (!files.length) return;
-        const audioFiles = files.filter(
-          (file) =>
-            /\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i.test(file.name) ||
-            file.type.startsWith("audio/"),
-        );
-        // Retain earlier object URLs: queued and currently playing tracks may still use them.
-        this.localTracks = audioFiles
-          .map((file) => {
-            const url = URL.createObjectURL(file);
-            this.localURLs.push(url);
-            const track = parseCatalogTrack(
-              file.webkitRelativePath || file.name,
-              url,
-            );
-            return {
-              ...track,
-              id: url,
-              details: `${file.name.split(".").pop()!.toUpperCase()} · ${(file.size / 1048576).toFixed(1)} MB`,
-            };
-          })
-          .sort((a, b) =>
-            a.displayName.localeCompare(b.displayName, undefined, {
-              numeric: true,
-              sensitivity: "base",
-            }),
+    for (const [buttonId, inputId] of [
+      ["choose-folder", "folder-input"],
+      ["choose-tracks", "tracks-input"],
+    ]) {
+      const input = document.querySelector<HTMLInputElement>(`#${inputId}`)!;
+      document
+        .querySelector(`#${buttonId}`)!
+        .addEventListener("click", () => input.click(), { signal });
+      input.addEventListener(
+        "change",
+        () => {
+          const files = Array.from(input.files ?? []);
+          if (!files.length) return;
+          const audioFiles = files.filter(
+            (file) =>
+              /\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i.test(file.name) ||
+              file.type.startsWith("audio/"),
           );
-        this.setCatalogTracks(getCatalogTracks());
-        const folder =
-          files[0].webkitRelativePath.split("/")[0] || "Selected folder";
-        document.querySelector("#folder-status")!.textContent =
-          `${folder}: ${audioFiles.length} audio tracks. Choose another folder to replace the library; queued songs remain available.`;
-        input.value = "";
-      },
-      { signal },
-    );
+          // Retain earlier object URLs: queued and currently playing tracks may still use them.
+          this.localTracks = audioFiles
+            .map((file) => {
+              const url = URL.createObjectURL(file);
+              this.localURLs.push(url);
+              const track = parseCatalogTrack(
+                file.webkitRelativePath || file.name,
+                url,
+              );
+              return {
+                ...track,
+                id: url,
+                details: `${file.name.split(".").pop()!.toUpperCase()} · ${(file.size / 1048576).toFixed(1)} MB`,
+              };
+            })
+            .sort((a, b) =>
+              a.displayName.localeCompare(b.displayName, undefined, {
+                numeric: true,
+                sensitivity: "base",
+              }),
+            );
+          this.setCatalogTracks(getCatalogTracks());
+          const folder =
+            files[0].webkitRelativePath.split("/")[0] || "Selected files";
+          document.querySelector("#folder-status")!.textContent =
+            `${folder}: ${audioFiles.length} audio tracks. Choose another folder or files to replace the library; queued songs remain available.`;
+          input.value = "";
+        },
+        { signal },
+      );
+    }
   }
   setCatalogTracks(tracks: CatalogTrack[]) {
     tracks = [...tracks, ...this.localTracks];

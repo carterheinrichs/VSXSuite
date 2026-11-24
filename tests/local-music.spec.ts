@@ -95,3 +95,67 @@ for (const revision of [1, 2]) {
     }
   });
 }
+
+for (const revision of [1, 2]) {
+  for (const viewport of [
+    { width: 320, height: 740 },
+    { width: 844, height: 390 },
+  ]) {
+    test(`mobile library ${viewport.width}x${viewport.height}, revision ${revision}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(`/?ui=${revision}`);
+      await page.getByRole("link", { name: "Music library" }).click();
+      const picker = page.waitForEvent("filechooser");
+      await page.getByRole("button", { name: "Choose audio files" }).click();
+      await (
+        await picker
+      ).setFiles([
+        { name: "Mobile song.wav", mimeType: "audio/wav", buffer: wav() },
+      ]);
+      const add = page.getByRole("button", {
+        name: "Add Mobile song to queue",
+        exact: true,
+      });
+      await add.click();
+      const addBox = (await add.boundingBox())!;
+      expect(addBox.width).toBeGreaterThanOrEqual(44);
+      expect(addBox.height).toBeGreaterThanOrEqual(44);
+      await page
+        .locator(".catalog-track")
+        .filter({ hasText: "Mobile song" })
+        .click();
+      await expect(page.locator("footer")).toHaveAttribute(
+        "data-audio-state",
+        "playing",
+      );
+      const geometry = await page.evaluate(() => {
+        const panel = document
+          .querySelector("#music-page")!
+          .getBoundingClientRect();
+        const footer = document
+          .querySelector("footer")!
+          .getBoundingClientRect();
+        return {
+          panelBottom: panel.bottom,
+          footerTop: footer.top,
+          footerRight: footer.right,
+          width: innerWidth,
+          scroll: document.querySelector("#music-page")!.scrollWidth,
+          panelWidth: panel.width,
+        };
+      });
+      expect(geometry.panelBottom).toBeLessThanOrEqual(geometry.footerTop);
+      expect(geometry.footerRight).toBeLessThanOrEqual(geometry.width);
+      expect(geometry.scroll).toBeLessThanOrEqual(geometry.panelWidth);
+      await page.getByRole("link", { name: "Back to visualizer" }).click();
+      await expect(page.locator("footer")).toHaveAttribute(
+        "data-audio-state",
+        "playing",
+      );
+      await page.getByRole("link", { name: "Music library" }).click();
+      await expect(page.locator("#queue-count")).toHaveText("1");
+    });
+  }
+}

@@ -46,13 +46,21 @@
       <h1>Local music library</h1>
       <p>
         Choose a folder to browse its audio tracks, including subfolders. Your
-        music stays on this device. Keep this tab open to keep your library and
-        queue.
+        music stays on this device. If your phone cannot choose folders, choose
+        audio files instead. Keep this tab open to keep your library and queue.
       </p>
       <div class="music-actions">
         <button id="choose-folder" class="primary">Choose folder</button>
+        <button id="choose-tracks">Choose audio files</button>
         <a href="#">Back to visualizer</a>
       </div>
+      <input
+        id="tracks-input"
+        type="file"
+        accept="audio/*,.mp3,.wav,.ogg,.flac,.m4a,.aac,.opus"
+        multiple
+        hidden
+      />
       <input id="folder-input" type="file" webkitdirectory multiple hidden />
       <p id="folder-status" role="status">
         No folder selected. Supported: MP3, WAV, OGG, FLAC, M4A, AAC, OPUS.
