@@ -1,8 +1,17 @@
+import {
+  readSavedLibrary,
+  saveLibrary,
+  scanMusicDirectory,
+  isAudioFile,
+  type SavedMusicLibrary,
+  type MusicDirectory,
+} from "../audio/LocalMusicLibrary";
 import { Pane } from "tweakpane";
 import type { VisualizerHost } from "../core/VisualizerHost";
 import type { AudioEngine, PlaybackMode } from "../audio/AudioEngine";
 import {
   getCatalogTracks,
+  parseCatalogTrack,
   probeTrackDuration,
   subscribeCatalog,
   type CatalogTrack,
@@ -24,6 +33,8 @@ export class ViszSuiteUI {
   private connectingAudio = false;
   private readonly exporter = new VideoExporter();
   private downloadURL = "";
+  private localTracks: CatalogTrack[] = [];
+  private localURLs: string[] = [];
   private catalogTracks: CatalogTrack[] = getCatalogTracks();
   private readonly catalogProbes = new Map<string, TrackProbeState>();
   private activeTrackId = "";
@@ -114,6 +125,7 @@ export class ViszSuiteUI {
     audio.onEnded = () => {
       if (audio.playbackMode === "queue") void this.playNext();
     };
+    this.bindMusicPage();
     this.renderQueue();
     this.renderCatalog();
     this.unsubscribeCatalog = subscribeCatalog((tracks) => {
@@ -652,7 +664,188 @@ export class ViszSuiteUI {
     this.footer.dataset.audioState = this.audio.transportState;
     this.transport();
   }
+  private bindMusicPage() {
+    const signal = this.abort.signal;
+    const page = document.querySelector<HTMLElement>("#music-page")!;
+    const catalog = document.querySelector<HTMLElement>("#catalog")!;
+    const queue = document.querySelector<HTMLElement>("#queue")!;
+    const catalogHome = document.createComment("catalog home");
+    const queueHome = document.createComment("queue home");
+    catalog.before(catalogHome);
+    queue.before(queueHome);
+    const navigate = () => {
+      const music = location.hash === "#music";
+      document.body.classList.toggle("music-page", music);
+      page.hidden = !music;
+      if (music) {
+        document.body.classList.remove("focus-mode");
+        const focus = document.querySelector<HTMLButtonElement>("#focus")!;
+        focus.textContent = "Hide controls";
+        focus.setAttribute("aria-pressed", "false");
+        document.querySelector("#music-catalog-slot")!.append(catalog);
+        document.querySelector("#music-queue-slot")!.append(queue);
+      } else {
+        catalogHome.after(catalog);
+        queueHome.after(queue);
+      }
+      document
+        .querySelector("#music-open")!
+        .setAttribute("aria-current", music ? "page" : "false");
+    };
+    window.addEventListener("hashchange", navigate, { signal });
+    navigate();
+    let saved: SavedMusicLibrary | undefined;
+    let generation = 0;
+    const status = document.querySelector<HTMLElement>("#folder-status")!;
+    const refresh =
+      document.querySelector<HTMLButtonElement>("#refresh-library")!;
+    const show = (library: SavedMusicLibrary) => {
+      saved = library;
+      refresh.hidden = !library.directory;
+      // Old URLs remain available for songs already playing or queued.
+      this.localTracks = library.files
+        .map((file) => {
+          const url = URL.createObjectURL(file);
+          this.localURLs.push(url);
+          return {
+            ...parseCatalogTrack(file.name, url),
+            id: url,
+            details: `${file.name.split(".").pop()!.toUpperCase()} · ${(file.size / 1048576).toFixed(1)} MB`,
+          };
+        })
+        .sort((a, b) =>
+          a.displayName.localeCompare(b.displayName, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          }),
+        );
+      this.setCatalogTracks(getCatalogTracks());
+      status.textContent = `${library.name}: ${library.files.length} audio tracks.`;
+    };
+    const persist = async (library: SavedMusicLibrary, token: number) => {
+      if (token !== generation || signal.aborted) return;
+      show(library);
+      try {
+        await saveLibrary(library);
+        if (token === generation)
+          status.textContent += library.directory
+            ? " Saved. Folder is checked for changes on each page load."
+            : " Saved on this device. Choose files again to import new music.";
+      } catch {
+        if (token === generation)
+          status.textContent +=
+            " Browser storage is unavailable or full; these tracks are available for this session only.";
+      }
+    };
+    const refreshFolder = async (
+      library: SavedMusicLibrary,
+      token: number,
+      interactive: boolean,
+    ) => {
+      try {
+        const directory = library.directory!;
+        let permission = await directory.queryPermission({ mode: "read" });
+        if (permission !== "granted" && interactive)
+          permission = await directory.requestPermission({ mode: "read" });
+        if (token !== generation || signal.aborted) return;
+        if (permission !== "granted") {
+          status.textContent +=
+            " Showing saved tracks. Tap Refresh folder to allow access and check for new files.";
+          return;
+        }
+        const files = await scanMusicDirectory(directory);
+        await persist({ ...library, files }, token);
+      } catch {
+        if (token === generation)
+          status.textContent +=
+            " Could not refresh the folder. Saved tracks remain available; reconnect the folder to try again.";
+      }
+    };
+    refresh.addEventListener(
+      "click",
+      () => {
+        if (saved?.directory) void refreshFolder(saved, ++generation, true);
+      },
+      { signal },
+    );
+    void (async () => {
+      const token = generation;
+      try {
+        const library = await readSavedLibrary();
+        if (!library || token !== generation || signal.aborted) return;
+        show(library);
+        if (library.directory) await refreshFolder(library, token, false);
+        else
+          status.textContent +=
+            " Restored from this device. Choose files again to import new music.";
+      } catch {
+        if (token === generation)
+          status.textContent =
+            "Could not restore browser storage. Choose a folder or audio files to get started.";
+      }
+    })();
+    const pickerWindow = window as typeof window & {
+      showDirectoryPicker?: () => Promise<MusicDirectory>;
+    };
+    document.querySelector("#choose-folder")!.addEventListener(
+      "click",
+      () => {
+        if (!pickerWindow.showDirectoryPicker) {
+          document.querySelector<HTMLInputElement>("#folder-input")!.click();
+          return;
+        }
+        const token = ++generation;
+        void pickerWindow
+          .showDirectoryPicker()
+          .then(async (directory) => {
+            await persist(
+              {
+                name: directory.name,
+                directory,
+                files: await scanMusicDirectory(directory),
+              },
+              token,
+            );
+          })
+          .catch((error) => {
+            if (token === generation && error?.name !== "AbortError")
+              status.textContent =
+                "Unable to open folder. Try choosing audio files instead.";
+          });
+      },
+      { signal },
+    );
+    document.querySelector("#choose-tracks")!.addEventListener(
+      "click",
+      () => {
+        document.querySelector<HTMLInputElement>("#tracks-input")!.click();
+      },
+      { signal },
+    );
+    for (const id of ["folder-input", "tracks-input"]) {
+      const input = document.querySelector<HTMLInputElement>(`#${id}`)!;
+      input.addEventListener(
+        "change",
+        () => {
+          const files = Array.from(input.files ?? []);
+          if (!files.length) return;
+          void persist(
+            {
+              name:
+                files[0].webkitRelativePath.split("/")[0] || "Imported music",
+              files: files.filter(isAudioFile),
+            },
+            ++generation,
+          );
+          input.value = "";
+        },
+        { signal },
+      );
+    }
+  }
+
   setCatalogTracks(tracks: CatalogTrack[]) {
+    tracks = [...tracks, ...this.localTracks];
     this.catalogTracks = tracks;
     if (
       this.activeTrackId &&
@@ -679,6 +872,7 @@ export class ViszSuiteUI {
       button.type = "button";
       button.className = "catalog-track";
       button.dataset.track = track.id;
+      if (track.details) button.title = track.details;
       button.setAttribute(
         "aria-pressed",
         String(this.activeTrackId === track.id),
@@ -1008,6 +1202,7 @@ export class ViszSuiteUI {
     this.unsubscribeCatalog();
     this.abort.abort();
     this.pane.dispose();
+    for (const url of this.localURLs) URL.revokeObjectURL(url);
     this.audio.onStateChange = null;
     this.audio.onEnded = null;
     this.exporter.onStateChange = null;

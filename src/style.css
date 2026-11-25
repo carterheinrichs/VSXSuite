@@ -1609,3 +1609,150 @@ body.focus-mode #right-panels {
 .transport {
   flex-wrap: wrap;
 }
+
+/* In-app navigation keeps the audio engine and queue alive between views. */
+#music-page[hidden] {
+  display: none;
+}
+#music-page {
+  pointer-events: auto;
+  text-shadow: none;
+  position: fixed;
+  inset: 100px 24px 150px;
+  overflow: auto;
+  padding: 28px;
+  max-width: 1000px;
+  margin: 0 auto;
+  background: #10131ef5;
+  border: 1px solid #ffffff20;
+  border-radius: 18px;
+}
+#music-page h1 {
+  font-size: clamp(26px, 4vw, 42px);
+  margin: 12px 0;
+}
+#music-page p {
+  display: block;
+  color: #a5aec4;
+  line-height: 1.6;
+}
+.music-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.music-actions a {
+  color: #bda8ff;
+}
+#music-page #catalog {
+  position: static;
+  width: 100%;
+  max-height: none;
+  margin: 20px 0;
+  display: block;
+  transform: none;
+}
+#music-page #catalog-motion,
+#music-page #catalog-content,
+#music-page #catalog-list {
+  max-height: none;
+}
+#music-page #queue {
+  max-height: 300px;
+}
+body.music-page #library,
+body.music-page #right-panels,
+body.music-page #stage,
+body.music-page #focus,
+body.music-page #export-open {
+  display: none;
+}
+@media (max-width: 700px) {
+  #music-page {
+    inset: 120px 12px 200px;
+    padding: 18px;
+  }
+}
+
+/* Keep library navigation and transport usable on touch screens. */
+@media (max-width: 900px) {
+  .view-actions #music-open {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .music-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  #music-page button,
+  #music-page .music-actions a {
+    min-height: 44px;
+  }
+  #music-page .queue-icon-button {
+    min-width: 44px;
+  }
+  #music-page .catalog-track {
+    min-width: 0;
+  }
+  #music-page .catalog-track-title {
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 600px), (max-height: 500px) {
+  body.music-page header {
+    top: env(safe-area-inset-top, 0px);
+    left: 8px;
+    right: 8px;
+    padding: 8px;
+  }
+  body.music-page #fullscreen {
+    display: none;
+  }
+  #music-page {
+    inset: calc(76px + env(safe-area-inset-top, 0px)) 8px
+      calc(160px + env(safe-area-inset-bottom, 0px));
+    padding: 16px;
+    max-width: none;
+  }
+  body.music-page footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  body.music-page .transport {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 6px;
+  }
+  body.music-page .transport button,
+  body.music-page .transport select {
+    min-height: 44px;
+  }
+  body.music-page #file,
+  body.music-page .stats {
+    display: none;
+  }
+  body.music-page .timeline {
+    width: 100%;
+  }
+  body.music-page #source-label {
+    display: none;
+  }
+}
+.view-actions #visualizer-open {
+  display: none;
+}
+body.music-page .view-actions #visualizer-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+body.music-page #music-open {
+  display: none;
+}
