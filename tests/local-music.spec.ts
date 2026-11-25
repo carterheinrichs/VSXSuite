@@ -3,8 +3,8 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-function wav() {
-  const samples = 44100 * 30;
+function wav(seconds = 30) {
+  const samples = 44100 * seconds;
   const buffer = Buffer.alloc(44 + samples * 2);
   buffer.write("RIFF");
   buffer.writeUInt32LE(buffer.length - 8, 4);
@@ -159,3 +159,76 @@ for (const revision of [1, 2]) {
     });
   }
 }
+
+test("imported music is restored and playable after reload", async ({
+  page,
+}) => {
+  await page.goto("/#music");
+  await page.locator("#tracks-input").setInputFiles({
+    name: "Saved song.wav",
+    mimeType: "audio/wav",
+    buffer: wav(),
+  });
+  await expect(page.locator("#folder-status")).toContainText(
+    "Saved on this device",
+  );
+  await page.reload();
+  await expect(page.locator("#folder-status")).toContainText(
+    "Restored from this device",
+  );
+  await page
+    .locator(".catalog-track")
+    .filter({ hasText: "Saved song" })
+    .click();
+  await expect(page.locator("footer")).toHaveAttribute(
+    "data-audio-state",
+    "playing",
+  );
+  await page
+    .locator("header")
+    .getByRole("link", { name: "Back to visualizer" })
+    .click();
+  await expect(page.locator("#stage")).toBeVisible();
+});
+
+test("saved folder is rescanned for added and removed files on reload", async ({
+  page,
+}) => {
+  await page.goto("/#music");
+  await page.evaluate(
+    async (bytes) => {
+      const root = await navigator.storage.getDirectory();
+      const directory = await root.getDirectoryHandle("test-music", {
+        create: true,
+      });
+      const file = await directory.getFileHandle("Original.wav", {
+        create: true,
+      });
+      const writer = await file.createWritable();
+      await writer.write(new Uint8Array(bytes));
+      await writer.close();
+      // @ts-expect-error Vite source module
+      const { saveLibrary } = await import("/src/audio/LocalMusicLibrary.ts");
+      await saveLibrary({
+        name: directory.name,
+        directory,
+        files: [await file.getFile()],
+      });
+      await directory.removeEntry("Original.wav");
+      const added = await directory.getFileHandle("Added.wav", {
+        create: true,
+      });
+      const nextWriter = await added.createWritable();
+      await nextWriter.write(new Uint8Array(bytes));
+      await nextWriter.close();
+    },
+    Array.from(wav(1)),
+  );
+  await page.reload();
+  await expect(
+    page.locator(".catalog-track").filter({ hasText: "Added" }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".catalog-track").filter({ hasText: "Original" }),
+  ).toHaveCount(0);
+});

@@ -34,6 +34,7 @@
     <header>
       <a class="brand" href="#">VSX<span>SUITE</span></a>
       <div class="view-actions">
+        <a id="visualizer-open" href="#">Back to visualizer</a>
         <a id="music-open" href="#music">Music library</a>
         <button id="focus" aria-pressed="false">Hide controls</button>
         <button id="fullscreen">Fullscreen</button>
@@ -47,12 +48,14 @@
       <p>
         Choose a folder to browse its audio tracks, including subfolders. Your
         music stays on this device. If your phone cannot choose folders, choose
-        audio files instead. Keep this tab open to keep your library and queue.
+        audio files instead. Your library is saved in this browser. Connected
+        folders are checked for new files on each page load; your browser may
+        ask you to allow access again.
       </p>
       <div class="music-actions">
         <button id="choose-folder" class="primary">Choose folder</button>
         <button id="choose-tracks">Choose audio files</button>
-        <a href="#">Back to visualizer</a>
+        <button id="refresh-library" hidden>Refresh folder</button>
       </div>
       <input
         id="tracks-input"

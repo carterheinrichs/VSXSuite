@@ -1745,3 +1745,14 @@ body.music-page #export-open {
     display: none;
   }
 }
+.view-actions #visualizer-open {
+  display: none;
+}
+body.music-page .view-actions #visualizer-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+body.music-page #music-open {
+  display: none;
+}
